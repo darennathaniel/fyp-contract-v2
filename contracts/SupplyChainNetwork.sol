@@ -24,7 +24,7 @@ contract SupplyChainNetwork {
     struct Company {
         address owner;
         bool exist;
-        mapping(uint => uint[]) supplies;
+        mapping(uint => uint[]) supplies; // uint[] refers to supplyId from MongoDB
         Product[] listOfSupply;
         mapping(uint => Recipe) prerequisiteSupply;
         Product[] listOfPrerequisites;
@@ -38,7 +38,7 @@ contract SupplyChainNetwork {
   mapping(address => Company) public companies;
   Company[] public headCompanies;
   mapping(address => Product) public productOwners;
-  uint[] public supplies;
+  uint[] public supplies; // uint[] refers to supplyId from MongoDB
 
   modifier onlyNetworkOwner() {
       require(msg.sender == networkOwner, "Only Network Owner can call this function");
