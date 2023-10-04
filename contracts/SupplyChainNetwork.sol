@@ -146,7 +146,19 @@ contract SupplyChainNetwork {
         
     }
     function declineRequest() public {}
-    function sendContract() public {}
+    // The sender sends contract to ask which PRODUCT it wants
+    function sendContract(address destination, uint productId) public {
+        // put inside outgoing contract to track down which company and what product I've asked for
+        companies[msg.sender].outgoingContract.push(CompanyProduct({
+            companyId: destination,
+            productId: productId
+        }));
+        // gets who sends the contract and what product he wants from MY stash
+        companies[destination].incomingContract.push(CompanyProduct({
+            companyId: msg.sender,
+            productId: productId
+        }));
+    }
     function approveContract() public {}
     function deleteContract() public {}
 }
