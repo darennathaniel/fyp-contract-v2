@@ -105,7 +105,9 @@ contract SupplyChainNetwork {
         products.pop();
         delete listOfProducts[productId];
     }
-    function getSupply() public {}
+    function getPastSupplies(uint supplyIdParameter) public view returns (uint[] memory) {
+        return pastSupplies[supplyIdParameter];
+    }
     function getPrerequisiteSupply() public {}
     function convertPrerequisiteToSupply(uint numberOfSupply, uint supplyProductId, uint newSupplyId, uint[] memory prerequisiteProductIds, uint[] memory prerequisiteSupplyIds, uint[] memory prerequisiteQuantities) public onlyOwnCompanyOwner {
         uint numberOfEmptySupplies = 0; // used to pop existing prerequisite supplies
