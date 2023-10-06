@@ -3,9 +3,15 @@ module.exports = {
   // for more about customizing your Truffle configuration!
   compilers: {
     solc: {
-      version: "^0.8",
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 200,
+        },
+      },
     },
   },
+  plugins: ["truffle-contract-size"],
   networks: {
     development: {
       host: "127.0.0.1",
