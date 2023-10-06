@@ -61,5 +61,26 @@ contract("SupplyChainNetwork", (accounts) => {
       );
     }
   });
-  it("");
+  it("Send contract from account 1 to account 2", async () => {
+    await supplyChainNetwork.sendContract.sendTransaction(
+      {
+        id: 1,
+        companyId: accounts[2],
+        productId: 2,
+      },
+      { from: accounts[1] }
+    );
+    const company1 = await supplyChainNetwork.getCompany.call({
+      from: accounts[1],
+    });
+    const company2 = await supplyChainNetwork.getCompany.call({
+      from: accounts[2],
+    });
+    assert.equal(company1.outgoingContract[0].id, 1);
+    assert.equal(company1.outgoingContract[0].companyId, accounts[2]);
+    assert.equal(company1.outgoingContract[0].productId, 2);
+    assert.equal(company2.incomingContract[0].id, 1);
+    assert.equal(company2.incomingContract[0].companyId, accounts[1]);
+    assert.equal(company2.incomingContract[0].productId, 2);
+  });
 });

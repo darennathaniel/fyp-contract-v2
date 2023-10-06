@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.5.16;
+pragma solidity ^0.8;
 pragma experimental ABIEncoderV2;
 
 contract SupplyChainNetwork {
@@ -62,13 +62,14 @@ contract SupplyChainNetwork {
     function addCompany(address owner, string memory name) public {
         require(msg.sender == networkOwner);
         // require(!companies[owner].exist, "Address has a company already");
-        companies[owner].name = name;
-        companies[owner].owner = owner;
-        companies[owner].exist = true;
-        headCompanies.push(companies[owner]);
+        Company storage company = companies[owner];
+        company.name = name;
+        company.owner = owner;
+        company.exist = true;
+        headCompanies.push(company);
     }
     function deleteCompany(address companyAddress) public {}
-    function addProduct(uint productId, string memory productName) public returns (Product memory) {
+    function addProduct(uint productId, string memory productName) public {
         require(companies[msg.sender].exist);
         // require(!listOfProducts[productId].exist, "Product already exists in the network");
         Product memory product = Product({
@@ -95,6 +96,9 @@ contract SupplyChainNetwork {
         products[productIndex] = products[products.length - 1];
         products.pop();
         delete listOfProducts[productId];
+    }
+    function getCompany() public view returns (Company memory) {
+        return companies[msg.sender];
     }
     function getPrerequisiteSupply(uint productId) public view returns (Supply memory) {
         require(companies[msg.sender].owner == msg.sender);
@@ -209,17 +213,14 @@ contract SupplyChainNetwork {
     // The sender sends contract to ask which PRODUCT it wants
     function sendContract(CompanyContract memory companyContract) public {
         // put inside outgoing contract to track down which company and what product I've asked for
-        companies[msg.sender].outgoingContract.push(CompanyContract({
-            id: companyContract.id,
-            companyId: companyContract.companyId,
-            productId: companyContract.productId
-        }));
+        companies[msg.sender].outgoingContract.push(companyContract);
         // gets who sends the contract and what product he wants from MY stash
-        companies[companyContract.companyId].incomingContract.push(CompanyContract({
+        CompanyContract memory incomingContract = CompanyContract({
             id: companyContract.id,
             companyId: msg.sender,
             productId: companyContract.productId
-        }));
+        });
+        companies[companyContract.companyId].incomingContract.push(incomingContract);
     }
     function approveContract(CompanyContract memory companyContract) public {
         // sets pre requisite supply exists

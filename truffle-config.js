@@ -3,6 +3,7 @@ module.exports = {
   // for more about customizing your Truffle configuration!
   compilers: {
     solc: {
+      version: "0.8.2",
       settings: {
         optimizer: {
           enabled: true,
