@@ -61,4 +61,5 @@ contract("SupplyChainNetwork", (accounts) => {
       );
     }
   });
+  it("");
 });

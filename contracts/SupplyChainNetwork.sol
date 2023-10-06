@@ -9,7 +9,8 @@ contract SupplyChainNetwork {
         string productName;
         bool exist;
     }
-    struct CompanyProduct {
+    struct CompanyContract {
+        uint id;
         address companyId;
         uint productId;
     }
@@ -19,6 +20,7 @@ contract SupplyChainNetwork {
         uint[] quantities;
     }
     struct Request {
+        uint id;
         address from;
         address to;
         Product product;
@@ -42,11 +44,11 @@ contract SupplyChainNetwork {
         Product[] listOfPrerequisites;
         Recipe[] recipes;
         address[] upstream;
-        CompanyProduct[] downstream;
+        CompanyContract[] downstream;
         Request[] incomingRequests;
         Request[] outgoingRequests;
-        CompanyProduct[] incomingContract;
-        CompanyProduct[] outgoingContract;
+        CompanyContract[] incomingContract;
+        CompanyContract[] outgoingContract;
     }
     mapping(address => Company) public companies;
     mapping(address => mapping(uint => Supply)) public companySupplies;
@@ -78,7 +80,6 @@ contract SupplyChainNetwork {
         companies[msg.sender].listOfSupply.push(product);
         listOfProducts[productId] = product;
         products.push(product);
-        return product;
     }
     function deleteProduct(uint productId) public {
         require(companies[msg.sender].exist);
@@ -94,10 +95,6 @@ contract SupplyChainNetwork {
         products[productIndex] = products[products.length - 1];
         products.pop();
         delete listOfProducts[productId];
-    }
-    function getPastSupplies(uint supplyIdParameter) public view returns (uint[] memory) {
-        // require(pastSupplies[supplyIdParameter].exist, "Supply ID does not exist");
-        return pastSupplies[supplyIdParameter].pastSupply;
     }
     function getPrerequisiteSupply(uint productId) public view returns (Supply memory) {
         require(companies[msg.sender].owner == msg.sender);
@@ -189,33 +186,54 @@ contract SupplyChainNetwork {
             companyPrerequisiteSupplies[request.from][request.product.productId].quantities.push(supplyIdsAndQuantities[i][1]);
         }
         companyPrerequisiteSupplies[request.from][request.product.productId].total += total;
+
+        // remove the request from outgoingContract
+        for(uint i = 0; i < companies[request.from].outgoingRequests.length; i++) {
+            if(companies[request.from].outgoingRequests[i].id == request.id) {
+                companies[request.from].outgoingRequests[i] = companies[request.from].outgoingRequests[companies[request.from].outgoingRequests.length - 1];
+                break;
+            }
+        }
+        companies[request.from].outgoingRequests.pop();
+        // remove the contract request from incomingContract
+        for(uint i = 0; i < companies[request.to].incomingRequests.length; i++) {
+            if(companies[request.to].incomingRequests[i].id == request.id) {
+                companies[request.to].incomingRequests[i] = companies[request.to].incomingRequests[companies[request.to].incomingRequests.length - 1];
+                break;
+            }
+        }
+        companies[request.to].incomingRequests.pop();
+        // TODO: add event
     }
     function declineRequest(Request memory request) public {}
     // The sender sends contract to ask which PRODUCT it wants
-    function sendContract(address destination, uint productId) public {
+    function sendContract(CompanyContract memory companyContract) public {
         // put inside outgoing contract to track down which company and what product I've asked for
-        companies[msg.sender].outgoingContract.push(CompanyProduct({
-            companyId: destination,
-            productId: productId
+        companies[msg.sender].outgoingContract.push(CompanyContract({
+            id: companyContract.id,
+            companyId: companyContract.companyId,
+            productId: companyContract.productId
         }));
         // gets who sends the contract and what product he wants from MY stash
-        companies[destination].incomingContract.push(CompanyProduct({
+        companies[companyContract.companyId].incomingContract.push(CompanyContract({
+            id: companyContract.id,
             companyId: msg.sender,
-            productId: productId
+            productId: companyContract.productId
         }));
     }
-    function approveContract(CompanyProduct memory company) public {
+    function approveContract(CompanyContract memory companyContract) public {
         // sets pre requisite supply exists
-        companyPrerequisiteSupplies[company.companyId][company.productId].exist = true;
+        companyPrerequisiteSupplies[companyContract.companyId][companyContract.productId].exist = true;
         // pushes new product in the contract sender's list of prerequisites
-        companies[company.companyId].listOfPrerequisites.push(listOfProducts[company.productId]);
+        companies[companyContract.companyId].listOfPrerequisites.push(listOfProducts[companyContract.productId]);
         // adds a new company in the contract sender's list of downstreams
-        companies[company.companyId].downstream.push(CompanyProduct({
+        companies[companyContract.companyId].downstream.push(CompanyContract({
+            id: companyContract.id,
             companyId: msg.sender,
-            productId: company.productId
+            productId: companyContract.productId
         }));
         // adds a new company in the supplier's list of upstreams
-        companies[msg.sender].upstream.push(company.companyId);
+        companies[msg.sender].upstream.push(companyContract.companyId);
         // if supplier is a headCompany, remove it
         for(uint i = 0; i < headCompanies.length; i++) {
             if(headCompanies[i].owner == msg.sender) {
@@ -224,6 +242,23 @@ contract SupplyChainNetwork {
                 break;
             }
         }
+        // remove the contract request from outgoingContract
+        for(uint i = 0; i < companies[companyContract.companyId].outgoingContract.length; i++) {
+            if(companies[companyContract.companyId].outgoingContract[i].id == companyContract.id) {
+                companies[companyContract.companyId].outgoingContract[i] = companies[companyContract.companyId].outgoingContract[companies[companyContract.companyId].outgoingContract.length - 1];
+                break;
+            }
+        }
+        companies[companyContract.companyId].outgoingContract.pop();
+        // remove the contract request from incomingContract
+        for(uint i = 0; i < companies[msg.sender].incomingContract.length; i++) {
+            if(companies[msg.sender].incomingContract[i].id == companyContract.id) {
+                companies[msg.sender].incomingContract[i] = companies[msg.sender].incomingContract[companies[msg.sender].incomingContract.length - 1];
+                break;
+            }
+        }
+        companies[msg.sender].incomingContract.pop();
+        // TODO: add event
     }
     function deleteContract() public {}
 }
