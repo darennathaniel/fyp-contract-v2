@@ -62,7 +62,8 @@ contract SupplyChainNetwork {
     mapping(address => Product[]) public productOwners;
     mapping(uint => Product) public listOfProducts;
     Product[] public products;
-    mapping(uint => PastSupply) pastSupplies; // uint[] refers to supplyId from MongoDB
+    mapping(uint => PastSupply) public pastSupplies; // uint[] refers to supplyId from MongoDB
+    event Test(uint test);
 
     function addCompany(address owner, string memory name) public {
         require(msg.sender == networkOwner);
@@ -119,6 +120,10 @@ contract SupplyChainNetwork {
     function getCompany() public view returns (Company memory) {
         return companies[msg.sender];
     }
+    function getPastSupply(uint supplyId) public view returns (uint[] memory) {
+        require(pastSupplies[supplyId].exist);
+        return pastSupplies[supplyId].pastSupply;
+    }
     function getSupply(uint productId) public view returns (Supply memory) {
         require(companySupplies[msg.sender][productId].exist);
         return companySupplies[msg.sender][productId];
@@ -155,33 +160,36 @@ contract SupplyChainNetwork {
         for(uint i = 0; i < prerequisiteProductIds.length; i++) { // loops through prerequisite product IDs
             // Supply memory prerequisiteSupply = getPrerequisiteSupply(prerequisiteProductIds[i]);
             Supply memory prerequisiteSupply = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]];
-            uint numberOfEmptySupplies = 0; // used to pop existing prerequisite supplies
             for(uint j = 0; j < prerequisiteSupply.supplyId.length; j++) { // loops through storage prerequisite supply IDs
-                uint index = 0;
                 for(uint k = 0; k < prerequisiteSupplyIds.length; k++) { // loops through prerequisite supply ID passed in by backend, indicates the supply IDs to be deducted
                     pastSupplies[newSupplyId].pastSupply.push(prerequisiteSupplyIds[k]); // adds all prerequisite supply IDs that is part of creating the new supply
+                    pastSupplies[newSupplyId].exist = true;
                     if(prerequisiteSupply.supplyId[j] == prerequisiteSupplyIds[k]) {
-                        if(prerequisiteQuantities[k] >= prerequisiteSupply.quantities[j]) {
-                            companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j] = 0;
-                        } else {
-                            companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j] -= prerequisiteQuantities[k]; // deducts the storage prerequisite supply quantity
-                        }
+                        companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j] -= prerequisiteQuantities[k]; // deducts the storage prerequisite supply quantity
                         companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].total -= prerequisiteQuantities[k]; // deducts the total storage of prerequisite supply quantity
                     }
                 }
-                if(prerequisiteSupply.quantities[j] > 0) { // if quantity is less than 0, remove from the storage array
-                    companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[index] = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j];
-                    companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId[index] = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId[j];
-                    index += 1;
-                } else {
-                    numberOfEmptySupplies += 1;
+            }
+            // removing supply IDs that is below and equal to 0 quantity
+            uint[] memory newSupplyIds = new uint[](companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId.length);
+            uint[] memory newQuantities = new uint[](companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities.length);
+            uint newSize = 0;
+            for (uint j = 0; j < companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities.length; j++) {
+                if (companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j] > 0) {
+                    newSupplyIds[newSize] = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId[j];
+                    newQuantities[newSize] = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j];
+                    newSize++;
                 }
-        }
-            for(uint j = 0; j < numberOfEmptySupplies; j++) {
-                // process of removing from array for 0 quantities
-                companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities.pop();
-                companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId.pop();
-            } 
+            }
+            uint[] memory finalArray = new uint[](newSize);
+            for (uint k = 0; k < newSize; k++) {
+                finalArray[k] = newSupplyIds[k];
+            }
+            companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId = finalArray;
+            for (uint k = 0; k < newSize; k++) {
+                finalArray[k] = newQuantities[k];
+            }
+            companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities = finalArray;
         }
         // adds the new supply to storage
         companySupplies[msg.sender][newSupplyProductId].total += numberOfNewSupply;
@@ -198,37 +206,50 @@ contract SupplyChainNetwork {
         // require(companySupplies[msg.sender][request.product.productId].total >= request.quantity, "");
         // require(companyPrerequisiteSupplies[request.from][request.product.productId].exist, "");
         require(request.to == msg.sender);
-        uint numberOfEmptySupplies = 0;
-        uint index = 0;
-        uint total = 0;
         // reduce the supply quantity of to company
         for(uint i = 0; i < companySupplies[request.to][request.productId].supplyId.length; i++) {
             for(uint j = 0; j < supplyIdsAndQuantities.length; j++) {
                 if(companySupplies[request.to][request.productId].supplyId[i] == supplyIdsAndQuantities[j][0]) {
-                    total += supplyIdsAndQuantities[j][1];
+                    companySupplies[request.to][request.productId].total -= supplyIdsAndQuantities[j][1];
                     companySupplies[request.to][request.productId].quantities[i] -= supplyIdsAndQuantities[j][1];
-                }
-                if(companySupplies[request.to][request.productId].quantities[i] > 0) {
-                    companySupplies[request.to][request.productId].quantities[index] = companySupplies[request.to][request.productId].quantities[i];
-                    companySupplies[request.to][request.productId].supplyId[index] = companySupplies[request.to][request.productId].supplyId[i];
-                    index += 1;
-                } else {
-                    numberOfEmptySupplies += 1;
                 }
             }
         }
-        companySupplies[request.to][request.productId].total -= total;
-        for(uint i = 0; i < numberOfEmptySupplies; i++) {
-            companySupplies[request.to][request.productId].quantities.pop();
-            companySupplies[request.to][request.productId].supplyId.pop();
+        // removing supply IDs that is below and equal to 0 quantity
+        uint[] memory newSupplyIds = new uint[](companySupplies[request.to][request.productId].supplyId.length);
+        uint[] memory newQuantities = new uint[](companySupplies[request.to][request.productId].quantities.length);
+        uint newSize = 0;
+        for (uint i = 0; i < companySupplies[request.to][request.productId].quantities.length; i++) {
+            if (companySupplies[request.to][request.productId].quantities[i] > 0) {
+                newSupplyIds[newSize] = companySupplies[request.to][request.productId].supplyId[i];
+                newQuantities[newSize] = companySupplies[request.to][request.productId].quantities[i];
+                newSize++;
+            }
         }
+        uint[] memory finalArray = new uint[](newSize);
+        for (uint k = 0; k < newSize; k++) {
+            finalArray[k] = newSupplyIds[k];
+        }
+        companySupplies[request.to][request.productId].supplyId = finalArray;
+        for (uint k = 0; k < newSize; k++) {
+            finalArray[k] = newQuantities[k];
+        }
+        companySupplies[request.to][request.productId].quantities = finalArray;
         // increment the supply quantity for from company
         for(uint i = 0; i < supplyIdsAndQuantities.length; i++) {
-            companyPrerequisiteSupplies[request.from][request.productId].supplyId.push(supplyIdsAndQuantities[i][0]);
-            companyPrerequisiteSupplies[request.from][request.productId].quantities.push(supplyIdsAndQuantities[i][1]);
+            bool added = false;
+            for(uint j = 0; j < companyPrerequisiteSupplies[request.from][request.productId].supplyId.length; j++) {
+                if(companyPrerequisiteSupplies[request.from][request.productId].supplyId[j] == supplyIdsAndQuantities[i][0]) {
+                    companyPrerequisiteSupplies[request.from][request.productId].quantities[j] += supplyIdsAndQuantities[i][1];
+                    added = true;
+                }
+            }
+            if(!added) {
+                companyPrerequisiteSupplies[request.from][request.productId].supplyId.push(supplyIdsAndQuantities[i][0]);
+                companyPrerequisiteSupplies[request.from][request.productId].quantities.push(supplyIdsAndQuantities[i][1]);
+            }
+            companyPrerequisiteSupplies[request.from][request.productId].total += supplyIdsAndQuantities[i][1];
         }
-        companyPrerequisiteSupplies[request.from][request.productId].total += total;
-
         // remove the request from outgoingContract
         for(uint i = 0; i < companies[request.from].outgoingRequests.length; i++) {
             if(companies[request.from].outgoingRequests[i].id == request.id) {

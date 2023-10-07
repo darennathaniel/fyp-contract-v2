@@ -271,5 +271,107 @@ contract("SupplyChainNetwork", (accounts) => {
     assert.equal(prerequisite.supplyId[0], 1);
     assert.equal(Array.isArray(prerequisite.quantities), true);
     assert.equal(prerequisite.quantities[0], 2);
+    const pastSupplies = await supplyChainNetwork.getPastSupply.call(3);
+    assert.equal(Array.isArray(pastSupplies), true);
+    assert.equal(pastSupplies[0], 1);
+  });
+  it("Account 2 supplies another 10 eggs should create a new supply ID", async () => {
+    await supplyChainNetwork.convertToSupply.sendTransaction(2, 10, 2, {
+      from: accounts[2],
+    });
+    const companySupply = await supplyChainNetwork.getSupply.call(2, {
+      from: accounts[2],
+    });
+    assert.equal(companySupply.total, 15);
+    assert.equal(Array.isArray(companySupply.supplyId), true);
+    assert.equal(companySupply.supplyId[0], 1);
+    assert.equal(companySupply.supplyId[1], 2);
+    assert.equal(Array.isArray(companySupply.quantities), true);
+    assert.equal(companySupply.quantities[0], 5);
+    assert.equal(companySupply.quantities[1], 10);
+  });
+  it("Account 1 obtains 10 eggs from account 2 should remove the supplyId 1 and decrement supplyId 2", async () => {
+    await supplyChainNetwork.sendRequest.sendTransaction(
+      {
+        id: 2,
+        from: accounts[1],
+        to: accounts[2],
+        productId: 2,
+        quantity: 10,
+      },
+      { from: accounts[1] }
+    );
+    await supplyChainNetwork.approveRequest.sendTransaction(
+      {
+        id: 2,
+        from: accounts[1],
+        to: accounts[2],
+        productId: 2,
+        quantity: 10,
+      },
+      [
+        [1, 5],
+        [2, 5],
+      ],
+      { from: accounts[2] }
+    );
+    const prerequisiteSupplyCompany1 =
+      await supplyChainNetwork.getPrerequisiteSupply.call(2, {
+        from: accounts[1],
+      });
+    assert.equal(prerequisiteSupplyCompany1.total, 12);
+    assert.equal(Array.isArray(prerequisiteSupplyCompany1.supplyId), true);
+    assert.equal(prerequisiteSupplyCompany1.supplyId[0], 1);
+    assert.equal(prerequisiteSupplyCompany1.supplyId[1], 2);
+    assert.equal(Array.isArray(prerequisiteSupplyCompany1.quantities), true);
+    assert.equal(prerequisiteSupplyCompany1.quantities[0], 7);
+    assert.equal(prerequisiteSupplyCompany1.quantities[1], 5);
+    const supplyCompany2 = await supplyChainNetwork.getSupply.call(2, {
+      from: accounts[2],
+    });
+    assert.equal(supplyCompany2.total, 5);
+    assert.equal(Array.isArray(supplyCompany2.supplyId), true);
+    assert.equal(supplyCompany2.supplyId[0], 2);
+    assert.equal(Array.isArray(supplyCompany2.quantities), true);
+    assert.equal(supplyCompany2.quantities[0], 5);
+  });
+  it("Account 1 converts numerous prerequisite to supplies", async () => {
+    await supplyChainNetwork.convertPrerequisiteToSupply.sendTransaction(
+      1,
+      3,
+      4,
+      [2],
+      [1, 2],
+      [7, 5],
+      {
+        from: accounts[1],
+      }
+    );
+    const supply = await supplyChainNetwork.getSupply.call(1, {
+      from: accounts[1],
+    });
+    assert.equal(supply.total, 5);
+    assert.equal(Array.isArray(supply.supplyId), true);
+    assert.equal(supply.supplyId[0], 3);
+    assert.equal(supply.supplyId[1], 4);
+    assert.equal(Array.isArray(supply.quantities), true);
+    assert.equal(supply.quantities[0], 2);
+    assert.equal(supply.quantities[1], 3);
+    const prerequisite = await supplyChainNetwork.getPrerequisiteSupply.call(
+      2,
+      { from: accounts[1] }
+    );
+    assert.equal(prerequisite.total, 0);
+    assert.equal(Array.isArray(prerequisite.supplyId), true);
+    assert.equal(prerequisite.supplyId.length, 0);
+    assert.equal(Array.isArray(prerequisite.quantities), true);
+    assert.equal(prerequisite.quantities.length, 0);
+    const pastSupply3 = await supplyChainNetwork.getPastSupply.call(3);
+    assert.equal(Array.isArray(pastSupply3), true);
+    assert.equal(pastSupply3[0], 1);
+    const pastSupply4 = await supplyChainNetwork.getPastSupply.call(4);
+    assert.equal(Array.isArray(pastSupply4), true);
+    assert.equal(pastSupply4[0], 1);
+    assert.equal(pastSupply4[1], 2);
   });
 });
