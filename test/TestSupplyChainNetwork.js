@@ -163,7 +163,61 @@ contract("SupplyChainNetwork", (accounts) => {
     assert.equal(headCompany1.owner, company1.owner);
     assert.equal(company1.listOfPrerequisites[0].productId, 2);
   });
-  it("Account 3 declines contract from account 1", async () => {});
+  it("Account 3 declines contract from account 1", async () => {
+    await supplyChainNetwork.addCompany.sendTransaction(accounts[3], "c", {
+      from: owner,
+    });
+    await supplyChainNetwork.addProductWithRecipe.sendTransaction(
+      3,
+      "Breakfast Set 1",
+      [
+        {
+          productId: 1,
+          productName: "Omelette",
+        },
+        {
+          productId: 2,
+          productName: "Egg",
+        },
+      ],
+      [1, 1],
+      {
+        from: accounts[3],
+      }
+    );
+    await supplyChainNetwork.sendContract.sendTransaction(
+      {
+        id: 2,
+        from: accounts[1],
+        to: accounts[3],
+        productId: 3,
+      },
+      { from: accounts[1] }
+    );
+    await supplyChainNetwork.declineContract.sendTransaction(
+      {
+        id: 1,
+        from: accounts[1],
+        to: accounts[3],
+        productId: 3,
+      },
+      { from: accounts[3] }
+    );
+    const company1 = await supplyChainNetwork.getCompany.call({
+      from: accounts[1],
+    });
+    const company2 = await supplyChainNetwork.getCompany.call({
+      from: accounts[3],
+    });
+    const headCompany1 = await supplyChainNetwork.headCompanies(0);
+    const headCompany2 = await supplyChainNetwork.headCompanies(1);
+    assert.equal(company1.outgoingContract.length, 0);
+    assert.equal(company2.incomingContract.length, 0);
+    assert.equal(company2.upstream.length, 0);
+    assert.equal(company1.downstream.length, 1);
+    assert.equal(headCompany1.owner, company1.owner);
+    assert.equal(headCompany2.owner, company2.owner);
+  });
   it("Account 2 supplies 20 eggs", async () => {
     await supplyChainNetwork.convertToSupply.sendTransaction(2, 15, 1, {
       from: accounts[2],
@@ -233,6 +287,65 @@ contract("SupplyChainNetwork", (accounts) => {
     assert.equal(prerequisiteSupplyCompany1.supplyId[0], 1);
     assert.equal(Array.isArray(prerequisiteSupplyCompany1.quantities), true);
     assert.equal(prerequisiteSupplyCompany1.quantities[0], 10);
+    const supplyCompany2 = await supplyChainNetwork.getSupply.call(2, {
+      from: accounts[2],
+    });
+    assert.equal(supplyCompany2.total, 5);
+    assert.equal(Array.isArray(supplyCompany2.supplyId), true);
+    assert.equal(supplyCompany2.supplyId[0], 1);
+    assert.equal(Array.isArray(supplyCompany2.quantities), true);
+    assert.equal(supplyCompany2.quantities[0], 5);
+  });
+  it("Account 2 declines request from account 3", async () => {
+    await supplyChainNetwork.sendContract.sendTransaction(
+      {
+        id: 3,
+        from: accounts[3],
+        to: accounts[2],
+        productId: 2,
+      },
+      { from: accounts[3] }
+    );
+    await supplyChainNetwork.approveContract.sendTransaction(
+      {
+        id: 3,
+        from: accounts[3],
+        to: accounts[2],
+        productId: 2,
+      },
+      { from: accounts[2] }
+    );
+    await supplyChainNetwork.sendRequest.sendTransaction(
+      {
+        id: 3,
+        from: accounts[3],
+        to: accounts[2],
+        productId: 2,
+        quantity: 10,
+      },
+      { from: accounts[3] }
+    );
+    await supplyChainNetwork.declineRequest.sendTransaction(
+      {
+        id: 3,
+        from: accounts[3],
+        to: accounts[2],
+        productId: 2,
+        quantity: 10,
+      },
+      {
+        from: accounts[2],
+      }
+    );
+    const prerequisiteSupplyCompany1 =
+      await supplyChainNetwork.getPrerequisiteSupply.call(2, {
+        from: accounts[3],
+      });
+    assert.equal(prerequisiteSupplyCompany1.total, 0);
+    assert.equal(Array.isArray(prerequisiteSupplyCompany1.supplyId), true);
+    assert.equal(prerequisiteSupplyCompany1.supplyId.length, 0);
+    assert.equal(Array.isArray(prerequisiteSupplyCompany1.quantities), true);
+    assert.equal(prerequisiteSupplyCompany1.quantities.length, 0);
     const supplyCompany2 = await supplyChainNetwork.getSupply.call(2, {
       from: accounts[2],
     });

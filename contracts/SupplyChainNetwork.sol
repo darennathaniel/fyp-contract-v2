@@ -63,7 +63,12 @@ contract SupplyChainNetwork {
     mapping(uint => Product) public listOfProducts;
     Product[] public products;
     mapping(uint => PastSupply) public pastSupplies; // uint[] refers to supplyId from MongoDB
-    event Test(uint test);
+    enum STATE {
+        APPROVED,
+        REJECTED
+    }
+    event Requests(uint requestId, address from, address to, uint productId, uint quantity, STATE state, uint256 timestamp);
+    event Contracts(uint id, address from, address to, uint productId, STATE state, uint256 timestamp);
 
     function addCompany(address owner, string memory name) public {
         require(msg.sender == networkOwner);
@@ -77,15 +82,26 @@ contract SupplyChainNetwork {
     function deleteCompany(address companyAddress) public {}
     function addProduct(uint productId, string memory productName, address owner) private {
         // require(!listOfProducts[productId].exist, "Product already exists in the network");
-        Product memory product = Product({
+        productOwners[owner].push(Product({
+            productId: productId,
+            productName: productName,
+            exist: true
+        }));
+        companies[owner].listOfSupply.push(Product({
+            productId: productId,
+            productName: productName,
+            exist: true
+        }));
+        listOfProducts[productId] = Product({
             productId: productId,
             productName: productName,
             exist: true
         });
-        productOwners[owner].push(product);
-        companies[owner].listOfSupply.push(product);
-        listOfProducts[productId] = product;
-        products.push(product);
+        products.push(Product({
+            productId: productId,
+            productName: productName,
+            exist: true
+        }));
     }
     function addProductWithoutRecipe(uint productId, string memory productName, address owner) public {
         require(msg.sender == networkOwner);
@@ -135,10 +151,9 @@ contract SupplyChainNetwork {
     }
     function getRecipe(uint productId) public view returns (Recipe memory) {
         require(companies[msg.sender].owner == msg.sender);
-        Company memory company = companies[msg.sender];
-        for(uint i = 0; i < company.recipes.length; i++) {
-            if(company.recipes[i].supply.productId == productId) {
-                return company.recipes[i];
+        for(uint i = 0; i < companies[msg.sender].recipes.length; i++) {
+            if(companies[msg.sender].recipes[i].supply.productId == productId) {
+                return companies[msg.sender].recipes[i];
             }
         }
         revert("Recipe not found for that product ID");
@@ -159,12 +174,11 @@ contract SupplyChainNetwork {
         require(companies[msg.sender].owner == msg.sender);
         for(uint i = 0; i < prerequisiteProductIds.length; i++) { // loops through prerequisite product IDs
             // Supply memory prerequisiteSupply = getPrerequisiteSupply(prerequisiteProductIds[i]);
-            Supply memory prerequisiteSupply = companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]];
-            for(uint j = 0; j < prerequisiteSupply.supplyId.length; j++) { // loops through storage prerequisite supply IDs
+            for(uint j = 0; j < companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId.length; j++) { // loops through storage prerequisite supply IDs
                 for(uint k = 0; k < prerequisiteSupplyIds.length; k++) { // loops through prerequisite supply ID passed in by backend, indicates the supply IDs to be deducted
                     pastSupplies[newSupplyId].pastSupply.push(prerequisiteSupplyIds[k]); // adds all prerequisite supply IDs that is part of creating the new supply
                     pastSupplies[newSupplyId].exist = true;
-                    if(prerequisiteSupply.supplyId[j] == prerequisiteSupplyIds[k]) {
+                    if(companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId[j] == prerequisiteSupplyIds[k]) {
                         companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].quantities[j] -= prerequisiteQuantities[k]; // deducts the storage prerequisite supply quantity
                         companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].total -= prerequisiteQuantities[k]; // deducts the total storage of prerequisite supply quantity
                     }
@@ -266,9 +280,28 @@ contract SupplyChainNetwork {
             }
         }
         companies[request.to].incomingRequests.pop();
-        // TODO: add event
+        emit Requests(request.id, request.from, request.to, request.productId, request.quantity, STATE.APPROVED, block.timestamp);
     }
-    function declineRequest(Request memory request) public {}
+    function declineRequest(Request memory request) public {
+        require(request.to == msg.sender);
+        // remove the request from outgoingContract
+        for(uint i = 0; i < companies[request.from].outgoingRequests.length; i++) {
+            if(companies[request.from].outgoingRequests[i].id == request.id) {
+                companies[request.from].outgoingRequests[i] = companies[request.from].outgoingRequests[companies[request.from].outgoingRequests.length - 1];
+                break;
+            }
+        }
+        companies[request.from].outgoingRequests.pop();
+        // remove the contract request from incomingContract
+        for(uint i = 0; i < companies[request.to].incomingRequests.length; i++) {
+            if(companies[request.to].incomingRequests[i].id == request.id) {
+                companies[request.to].incomingRequests[i] = companies[request.to].incomingRequests[companies[request.to].incomingRequests.length - 1];
+                break;
+            }
+        }
+        companies[request.to].incomingRequests.pop();
+        emit Requests(request.id, request.from, request.to, request.productId, request.quantity, STATE.REJECTED, block.timestamp);
+    }
     // The sender sends contract to ask which PRODUCT it wants
     function sendContract(CompanyContract memory companyContract) public {
         require(msg.sender == companyContract.from);
@@ -314,7 +347,26 @@ contract SupplyChainNetwork {
             }
         }
         companies[companyContract.to].incomingContract.pop();
-        // TODO: add event
+        emit Contracts(companyContract.id, companyContract.from, companyContract.to, companyContract.productId, STATE.APPROVED, block.timestamp);
     }
-    function deleteContract() public {}
+    function declineContract(CompanyContract memory companyContract) public {
+        require(msg.sender == companyContract.to);
+        // remove the contract request from outgoingContract
+        for(uint i = 0; i < companies[companyContract.from].outgoingContract.length; i++) {
+            if(companies[companyContract.from].outgoingContract[i].id == companyContract.id) {
+                companies[companyContract.from].outgoingContract[i] = companies[companyContract.from].outgoingContract[companies[companyContract.from].outgoingContract.length - 1];
+                break;
+            }
+        }
+        companies[companyContract.from].outgoingContract.pop();
+        // remove the contract request from incomingContract
+        for(uint i = 0; i < companies[companyContract.to].incomingContract.length; i++) {
+            if(companies[companyContract.to].incomingContract[i].id == companyContract.id) {
+                companies[companyContract.to].incomingContract[i] = companies[companyContract.to].incomingContract[companies[companyContract.to].incomingContract.length - 1];
+                break;
+            }
+        }
+        companies[companyContract.to].incomingContract.pop();
+        emit Contracts(companyContract.id, companyContract.from, companyContract.to, companyContract.productId, STATE.REJECTED, block.timestamp);
+    }
 }
