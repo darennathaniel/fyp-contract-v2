@@ -64,7 +64,7 @@ contract("SupplyChainNetwork", (accounts) => {
     const product1 = await supplyChainNetwork.listOfProducts(1);
     assert.equal(product1.productId, 1);
     assert.equal(product1.productName, "Omelette");
-    const company1 = await supplyChainNetwork.getCompany({ from: accounts[1] });
+    const company1 = await supplyChainNetwork.getCompany(accounts[1]);
     assert.equal(company1.recipes[0].supply.productId, 1);
     assert.equal(company1.recipes[0].supply.productName, "Omelette");
     assert.equal(company1.recipes[0].prerequisites[0].productId, 2);
@@ -120,12 +120,8 @@ contract("SupplyChainNetwork", (accounts) => {
       },
       { from: accounts[1] }
     );
-    const company1 = await supplyChainNetwork.getCompany.call({
-      from: accounts[1],
-    });
-    const company2 = await supplyChainNetwork.getCompany.call({
-      from: accounts[2],
-    });
+    const company1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const company2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     assert.equal(company1.outgoingContract[0].id, 1);
     assert.equal(company1.outgoingContract[0].to, accounts[2]);
     assert.equal(company1.outgoingContract[0].productId, 2);
@@ -143,12 +139,8 @@ contract("SupplyChainNetwork", (accounts) => {
       },
       { from: accounts[2] }
     );
-    const company1 = await supplyChainNetwork.getCompany.call({
-      from: accounts[1],
-    });
-    const company2 = await supplyChainNetwork.getCompany.call({
-      from: accounts[2],
-    });
+    const company1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const company2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     const headCompany1 = await supplyChainNetwork.headCompanies(0);
     try {
       await supplyChainNetwork.headCompanies(1);
@@ -203,12 +195,8 @@ contract("SupplyChainNetwork", (accounts) => {
       },
       { from: accounts[3] }
     );
-    const company1 = await supplyChainNetwork.getCompany.call({
-      from: accounts[1],
-    });
-    const company2 = await supplyChainNetwork.getCompany.call({
-      from: accounts[3],
-    });
+    const company1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const company2 = await supplyChainNetwork.getCompany.call(accounts[3]);
     const headCompany1 = await supplyChainNetwork.headCompanies(0);
     const headCompany2 = await supplyChainNetwork.headCompanies(1);
     assert.equal(company1.outgoingContract.length, 0);
@@ -252,12 +240,8 @@ contract("SupplyChainNetwork", (accounts) => {
       },
       { from: accounts[1] }
     );
-    const company1 = await supplyChainNetwork.getCompany.call({
-      from: accounts[1],
-    });
-    const company2 = await supplyChainNetwork.getCompany.call({
-      from: accounts[2],
-    });
+    const company1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const company2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     assert.equal(Array.isArray(company1.outgoingRequests), true);
     assert.equal(Array.isArray(company2.incomingRequests), true);
     assert.equal(company1.outgoingRequests[0].from, accounts[1]);

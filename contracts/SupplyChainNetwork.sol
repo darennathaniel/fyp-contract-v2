@@ -70,18 +70,22 @@ contract SupplyChainNetwork {
     event Requests(uint requestId, address from, address to, uint productId, uint quantity, STATE state, uint256 timestamp);
     event Contracts(uint id, address from, address to, uint productId, STATE state, uint256 timestamp);
 
+    function getCompany(address owner) public view returns (Company memory) {
+        return companies[owner];
+    }
     function addCompany(address owner, string memory name) public {
         require(msg.sender == networkOwner);
-        // require(!companies[owner].exist, "Address has a company already");
         Company storage company = companies[owner];
         company.name = name;
         company.owner = owner;
         company.exist = true;
         headCompanies.push(company);
     }
-    function deleteCompany(address companyAddress) public {}
+    // function deleteCompany(address companyAddress) public {}
+    function getHeadCompaniesLength() public view returns (uint) {
+        return headCompanies.length;
+    }
     function addProduct(uint productId, string memory productName, address owner) private {
-        // require(!listOfProducts[productId].exist, "Product already exists in the network");
         productOwners[owner].push(Product({
             productId: productId,
             productName: productName,
@@ -105,7 +109,6 @@ contract SupplyChainNetwork {
     }
     function addProductWithoutRecipe(uint productId, string memory productName, address owner) public {
         require(msg.sender == networkOwner);
-        // require(!listOfProducts[productId].exist, "Product already exists in the network");
         addProduct(productId, productName, owner);
     }
     function addProductWithRecipe(uint productId, string memory productName, Product[] memory prerequisiteSupplies, uint[] memory quantityPrerequisiteSupplies) public {
@@ -118,24 +121,29 @@ contract SupplyChainNetwork {
         recipe.supply = listOfProducts[productId];
         recipe.quantities = quantityPrerequisiteSupplies;
     }
-    function deleteProduct(uint productId) public {
-        require(companies[msg.sender].exist);
-        // require(listOfProducts[productId].exist, "Product does not exist in the network");
-        uint productIndex = 0;
-        for(uint index = 0; index < products.length; index++) {
-            Product memory product = products[index];
-            if(product.productId == productId) {
-                productIndex = index;
-                break;
-            }
-        }
-        products[productIndex] = products[products.length - 1];
-        products.pop();
-        delete listOfProducts[productId];
-    }
-    function getCompany() public view returns (Company memory) {
-        return companies[msg.sender];
-    }
+    // function deleteProduct(uint productId) public {
+    //     require(companies[msg.sender].exist);
+    //     for(uint i = 0; i < productOwners[msg.sender].length; i++) {
+    //         if(productOwners[msg.sender][i].productId == productId) {
+    //             productOwners[msg.sender][i] = productOwners[msg.sender][productOwners[msg.sender].length - 1];
+    //             productOwners[msg.sender].pop();
+    //             uint productIndex = 0;
+    //             for(uint index = 0; index < products.length; index++) {
+    //                 Product memory product = products[index];
+    //                 if(product.productId == productId) {
+    //                     productIndex = index;
+    //                     break;
+    //                 }
+    //             }
+    //             products[productIndex] = products[products.length - 1];
+    //             products.pop();
+    //             delete listOfProducts[productId];
+    //             break;
+    //         }
+    //     }
+    //     // revert("Company owner does not own this product");
+    //     revert();
+    // }
     function getPastSupply(uint supplyId) public view returns (uint[] memory) {
         require(pastSupplies[supplyId].exist);
         return pastSupplies[supplyId].pastSupply;
@@ -146,7 +154,6 @@ contract SupplyChainNetwork {
     }
     function getPrerequisiteSupply(uint productId) public view returns (Supply memory) {
         require(companies[msg.sender].owner == msg.sender);
-        // require(companyPrerequisiteSupplies[msg.sender][productId].exist, "Prerequisite supply ID does not exist");
         return companyPrerequisiteSupplies[msg.sender][productId];
     }
     function getRecipe(uint productId) public view returns (Recipe memory) {
