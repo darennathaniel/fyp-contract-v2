@@ -59,7 +59,7 @@ contract SupplyChainNetwork {
     mapping(address => mapping(uint => Supply)) public companySupplies;
     mapping(address => mapping(uint => Supply)) public companyPrerequisiteSupplies;
     Company[] public headCompanies;
-    mapping(address => Product[]) public productOwners;
+    mapping(uint => address[]) public productOwners;
     mapping(uint => Product) public listOfProducts;
     Product[] public products;
     mapping(uint => PastSupply) public pastSupplies; // uint[] refers to supplyId from MongoDB
@@ -85,12 +85,14 @@ contract SupplyChainNetwork {
     function getHeadCompaniesLength() public view returns (uint) {
         return headCompanies.length;
     }
+    function getProductLength() public view returns (uint) {
+        return products.length;
+    }
+    function getProductOwnerLength(uint productId) public view returns (uint) {
+        return productOwners[productId].length;
+    }
     function addProduct(uint productId, string memory productName, address owner) private {
-        productOwners[owner].push(Product({
-            productId: productId,
-            productName: productName,
-            exist: true
-        }));
+        productOwners[productId].push(owner);
         companies[owner].listOfSupply.push(Product({
             productId: productId,
             productName: productName,
@@ -166,8 +168,8 @@ contract SupplyChainNetwork {
         revert("Recipe not found for that product ID");
     }
     function convertToSupply(uint productId, uint numberOfSupply, uint supplyId) public {
-        for(uint i = 0; i < productOwners[msg.sender].length; i++) {
-            if(productOwners[msg.sender][i].productId == productId) {
+        for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
+            if(companies[msg.sender].listOfSupply[i].productId == productId) {
                 companySupplies[msg.sender][productId].total += numberOfSupply;
                 companySupplies[msg.sender][productId].supplyId.push(supplyId);
                 companySupplies[msg.sender][productId].quantities.push(numberOfSupply);

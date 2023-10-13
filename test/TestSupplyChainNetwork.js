@@ -45,6 +45,8 @@ contract("SupplyChainNetwork", (accounts) => {
     const product2 = await supplyChainNetwork.listOfProducts(2);
     assert.equal(product2.productId, 2);
     assert.equal(product2.productName, "Egg");
+    const productOwners = await supplyChainNetwork.productOwners(2, 0);
+    assert.equal(productOwners, accounts[2]);
   });
   it("Add a new product with recipe by company", async () => {
     await supplyChainNetwork.addProductWithRecipe.sendTransaction(
@@ -64,6 +66,8 @@ contract("SupplyChainNetwork", (accounts) => {
     const product1 = await supplyChainNetwork.listOfProducts(1);
     assert.equal(product1.productId, 1);
     assert.equal(product1.productName, "Omelette");
+    const productOwners = await supplyChainNetwork.productOwners(1, 0);
+    assert.equal(productOwners, accounts[1]);
     const company1 = await supplyChainNetwork.getCompany(accounts[1]);
     assert.equal(company1.recipes[0].supply.productId, 1);
     assert.equal(company1.recipes[0].supply.productName, "Omelette");
