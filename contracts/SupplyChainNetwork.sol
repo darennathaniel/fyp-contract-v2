@@ -225,16 +225,16 @@ contract SupplyChainNetwork {
         companies[request.from].outgoingRequests.push(request);
         companies[request.to].incomingRequests.push(request);
     }
-    function approveRequest(Request memory request, uint[][] memory supplyIdsAndQuantities) public {
+    function approveRequest(Request memory request, uint[] memory supplyIds, uint[] memory quantities) public {
         // require(companySupplies[msg.sender][request.product.productId].total >= request.quantity, "");
         // require(companyPrerequisiteSupplies[request.from][request.product.productId].exist, "");
         require(request.to == msg.sender);
         // reduce the supply quantity of to company
         for(uint i = 0; i < companySupplies[request.to][request.productId].supplyId.length; i++) {
-            for(uint j = 0; j < supplyIdsAndQuantities.length; j++) {
-                if(companySupplies[request.to][request.productId].supplyId[i] == supplyIdsAndQuantities[j][0]) {
-                    companySupplies[request.to][request.productId].total -= supplyIdsAndQuantities[j][1];
-                    companySupplies[request.to][request.productId].quantities[i] -= supplyIdsAndQuantities[j][1];
+            for(uint j = 0; j < supplyIds.length; j++) {
+                if(companySupplies[request.to][request.productId].supplyId[i] == supplyIds[j]) {
+                    companySupplies[request.to][request.productId].total -= quantities[j];
+                    companySupplies[request.to][request.productId].quantities[i] -= quantities[j];
                 }
             }
         }
@@ -259,19 +259,19 @@ contract SupplyChainNetwork {
         }
         companySupplies[request.to][request.productId].quantities = finalArray;
         // increment the supply quantity for from company
-        for(uint i = 0; i < supplyIdsAndQuantities.length; i++) {
+        for(uint i = 0; i < supplyIds.length; i++) {
             bool added = false;
             for(uint j = 0; j < companyPrerequisiteSupplies[request.from][request.productId].supplyId.length; j++) {
-                if(companyPrerequisiteSupplies[request.from][request.productId].supplyId[j] == supplyIdsAndQuantities[i][0]) {
-                    companyPrerequisiteSupplies[request.from][request.productId].quantities[j] += supplyIdsAndQuantities[i][1];
+                if(companyPrerequisiteSupplies[request.from][request.productId].supplyId[j] == supplyIds[i]) {
+                    companyPrerequisiteSupplies[request.from][request.productId].quantities[j] += quantities[i];
                     added = true;
                 }
             }
             if(!added) {
-                companyPrerequisiteSupplies[request.from][request.productId].supplyId.push(supplyIdsAndQuantities[i][0]);
-                companyPrerequisiteSupplies[request.from][request.productId].quantities.push(supplyIdsAndQuantities[i][1]);
+                companyPrerequisiteSupplies[request.from][request.productId].supplyId.push(supplyIds[i]);
+                companyPrerequisiteSupplies[request.from][request.productId].quantities.push(quantities[i]);
             }
-            companyPrerequisiteSupplies[request.from][request.productId].total += supplyIdsAndQuantities[i][1];
+            companyPrerequisiteSupplies[request.from][request.productId].total += quantities[i];
         }
         // remove the request from outgoingContract
         for(uint i = 0; i < companies[request.from].outgoingRequests.length; i++) {

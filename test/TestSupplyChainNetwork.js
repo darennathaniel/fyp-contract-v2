@@ -263,7 +263,8 @@ contract("SupplyChainNetwork", (accounts) => {
         productId: 2,
         quantity: 10,
       },
-      [[1, 10]],
+      [1],
+      [10],
       { from: accounts[2] }
     );
     const prerequisiteSupplyCompany1 =
@@ -410,10 +411,8 @@ contract("SupplyChainNetwork", (accounts) => {
         productId: 2,
         quantity: 10,
       },
-      [
-        [1, 5],
-        [2, 5],
-      ],
+      [1, 2],
+      [5, 5],
       { from: accounts[2] }
     );
     const prerequisiteSupplyCompany1 =
