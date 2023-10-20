@@ -1,19 +1,28 @@
 var SupplyChainNetwork = artifacts.require("SupplyChainNetwork");
+var ProductContract = artifacts.require("ProductContract");
 
 contract("SupplyChainNetwork", (accounts) => {
   let owner = accounts[0];
   let supplyChainNetwork;
+  let productContract;
   before(async () => {
     supplyChainNetwork = await SupplyChainNetwork.deployed();
+    productContract = await ProductContract.deployed();
   });
   it("Add a new company by owner should add a new company", async () => {
     await supplyChainNetwork.addCompany.sendTransaction(accounts[1], "a", {
+      from: owner,
+    });
+    await productContract.addCompany.sendTransaction(accounts[1], {
       from: owner,
     });
     const company1 = await supplyChainNetwork.companies(accounts[1]);
     assert.equal(company1.name, "a");
     assert.equal(company1.owner, accounts[1]);
     await supplyChainNetwork.addCompany.sendTransaction(accounts[2], "b", {
+      from: owner,
+    });
+    await productContract.addCompany.sendTransaction(accounts[2], {
       from: owner,
     });
     const company2 = await supplyChainNetwork.headCompanies(1);
@@ -34,7 +43,20 @@ contract("SupplyChainNetwork", (accounts) => {
     }
   });
   it("Add a new product without recipe by owner", async () => {
-    await supplyChainNetwork.addProductWithoutRecipe.sendTransaction(
+    // await supplyChainNetwork.addProductWithoutRecipe.sendTransaction(
+    //   2,
+    //   "Egg",
+    //   accounts[2],
+    //   {
+    //     from: accounts[0],
+    //   }
+    // );
+    // const product2 = await supplyChainNetwork.listOfProducts(2);
+    // assert.equal(product2.productId, 2);
+    // assert.equal(product2.productName, "Egg");
+    // const productOwners = await supplyChainNetwork.productOwners(2, 0);
+    // assert.equal(productOwners, accounts[2]);
+    await productContract.addProductWithoutRecipe.sendTransaction(
       2,
       "Egg",
       accounts[2],
@@ -42,14 +64,48 @@ contract("SupplyChainNetwork", (accounts) => {
         from: accounts[0],
       }
     );
-    const product2 = await supplyChainNetwork.listOfProducts(2);
+    await supplyChainNetwork.addProduct.sendTransaction(2, "Egg", accounts[2], {
+      from: accounts[0],
+    });
+    const product2 = await productContract.listOfProducts(2);
     assert.equal(product2.productId, 2);
     assert.equal(product2.productName, "Egg");
-    const productOwners = await supplyChainNetwork.productOwners(2, 0);
+    const productOwners = await productContract.productOwners(2, 0);
     assert.equal(productOwners, accounts[2]);
+    const supplyChainProduct = await supplyChainNetwork.getCompany.call(
+      accounts[2]
+    );
+    assert.equal(supplyChainProduct.listOfSupply[0], 2);
+    const productName = await supplyChainNetwork.productNames(0);
+    assert.equal(productName, "Egg");
   });
   it("Add a new product with recipe by company", async () => {
-    await supplyChainNetwork.addProductWithRecipe.sendTransaction(
+    // await supplyChainNetwork.addProductWithRecipe.sendTransaction(
+    //   1,
+    //   "Omelette",
+    //   [
+    //     {
+    //       productId: 2,
+    //       productName: "Egg",
+    //     },
+    //   ],
+    //   [4],
+    //   {
+    //     from: accounts[1],
+    //   }
+    // );
+    // const product1 = await supplyChainNetwork.listOfProducts(1);
+    // assert.equal(product1.productId, 1);
+    // assert.equal(product1.productName, "Omelette");
+    // const productOwners = await supplyChainNetwork.productOwners(1, 0);
+    // assert.equal(productOwners, accounts[1]);
+    // const company1 = await supplyChainNetwork.getCompany(accounts[1]);
+    // assert.equal(company1.recipes[0].supply.productId, 1);
+    // assert.equal(company1.recipes[0].supply.productName, "Omelette");
+    // assert.equal(company1.recipes[0].prerequisites[0].productId, 2);
+    // assert.equal(company1.recipes[0].prerequisites[0].productName, "Egg");
+    // assert.equal(company1.recipes[0].quantities[0], 4);
+    await productContract.addProductWithRecipe.sendTransaction(
       1,
       "Omelette",
       [
@@ -63,21 +119,29 @@ contract("SupplyChainNetwork", (accounts) => {
         from: accounts[1],
       }
     );
-    const product1 = await supplyChainNetwork.listOfProducts(1);
+    await supplyChainNetwork.addProduct.sendTransaction(
+      1,
+      "Omelette",
+      accounts[1],
+      { from: accounts[1] }
+    );
+    const product1 = await productContract.listOfProducts(1);
     assert.equal(product1.productId, 1);
     assert.equal(product1.productName, "Omelette");
-    const productOwners = await supplyChainNetwork.productOwners(1, 0);
+    const productOwners = await productContract.productOwners(1, 0);
     assert.equal(productOwners, accounts[1]);
-    const company1 = await supplyChainNetwork.getCompany(accounts[1]);
-    assert.equal(company1.recipes[0].supply.productId, 1);
-    assert.equal(company1.recipes[0].supply.productName, "Omelette");
-    assert.equal(company1.recipes[0].prerequisites[0].productId, 2);
-    assert.equal(company1.recipes[0].prerequisites[0].productName, "Egg");
-    assert.equal(company1.recipes[0].quantities[0], 4);
+    const recipe = await productContract.getRecipe.call(1, {
+      from: accounts[1],
+    });
+    assert.equal(recipe.supply.productId, 1);
+    assert.equal(recipe.supply.productName, "Omelette");
+    assert.equal(recipe.prerequisites[0].productId, 2);
+    assert.equal(recipe.prerequisites[0].productName, "Egg");
+    assert.equal(recipe.quantities[0], 4);
   });
   it("Add a new product without recipe other than network owner should throw an error", async () => {
     try {
-      await supplyChainNetwork.addProductWithoutRecipe.sendTransaction(
+      await productContract.addProductWithoutRecipe.sendTransaction(
         3,
         "a",
         accounts[3],
@@ -96,7 +160,7 @@ contract("SupplyChainNetwork", (accounts) => {
   });
   it("Add a new product with recipe by a non-existing company should throw an error", async () => {
     try {
-      await supplyChainNetwork.addProductWithRecipe.sendTransaction(
+      await productContract.addProductWithRecipe.sendTransaction(
         3,
         "a",
         [],
@@ -157,13 +221,16 @@ contract("SupplyChainNetwork", (accounts) => {
     assert.equal(company2.upstream[0], company1.owner);
     assert.equal(company1.downstream[0].companyId, company2.owner);
     assert.equal(headCompany1.owner, company1.owner);
-    assert.equal(company1.listOfPrerequisites[0].productId, 2);
+    assert.equal(company1.listOfPrerequisites[0], 2);
   });
   it("Account 3 declines contract from account 1", async () => {
     await supplyChainNetwork.addCompany.sendTransaction(accounts[3], "c", {
       from: owner,
     });
-    await supplyChainNetwork.addProductWithRecipe.sendTransaction(
+    await productContract.addCompany.sendTransaction(accounts[3], {
+      from: owner,
+    });
+    await productContract.addProductWithRecipe.sendTransaction(
       3,
       "Breakfast Set 1",
       [
@@ -180,6 +247,12 @@ contract("SupplyChainNetwork", (accounts) => {
       {
         from: accounts[3],
       }
+    );
+    await supplyChainNetwork.addProduct.sendTransaction(
+      3,
+      "Breakfast Set 1",
+      accounts[3],
+      { from: accounts[3] }
     );
     await supplyChainNetwork.sendContract.sendTransaction(
       {

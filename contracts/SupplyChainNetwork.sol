@@ -4,11 +4,11 @@ pragma experimental ABIEncoderV2;
 
 contract SupplyChainNetwork {
     address public networkOwner = msg.sender;
-    struct Product {
-        uint productId;
-        string productName;
-        bool exist;
-    }
+    // struct Product {
+    //     uint productId;
+    //     string productName;
+    //     bool exist;
+    // }
     struct CompanyContract {
         uint id;
         address from;
@@ -19,11 +19,11 @@ contract SupplyChainNetwork {
         address companyId;
         uint productId;
     }
-    struct Recipe {
-        Product supply;
-        Product[] prerequisites;
-        uint[] quantities;
-    }
+    // struct Recipe {
+    //     Product supply;
+    //     Product[] prerequisites;
+    //     uint[] quantities;
+    // }
     struct Request {
         uint id;
         address from;
@@ -45,9 +45,8 @@ contract SupplyChainNetwork {
         address owner;
         bool exist;
         string name;
-        Product[] listOfSupply;
-        Product[] listOfPrerequisites;
-        Recipe[] recipes;
+        uint[] listOfSupply;
+        uint[] listOfPrerequisites;
         address[] upstream;
         CompanyProduct[] downstream;
         Request[] incomingRequests;
@@ -59,9 +58,10 @@ contract SupplyChainNetwork {
     mapping(address => mapping(uint => Supply)) public companySupplies;
     mapping(address => mapping(uint => Supply)) public companyPrerequisiteSupplies;
     Company[] public headCompanies;
-    mapping(uint => address[]) public productOwners;
-    mapping(uint => Product) public listOfProducts;
-    Product[] public products;
+    // mapping(uint => address[]) public productOwners;
+    // mapping(uint => uint) public listOfProducts;
+    // Product[] public products;
+    string[] public productNames;
     mapping(uint => PastSupply) public pastSupplies; // uint[] refers to supplyId from MongoDB
     enum STATE {
         APPROVED,
@@ -85,44 +85,61 @@ contract SupplyChainNetwork {
     function getHeadCompaniesLength() public view returns (uint) {
         return headCompanies.length;
     }
-    function getProductLength() public view returns (uint) {
-        return products.length;
-    }
-    function getProductOwnerLength(uint productId) public view returns (uint) {
-        return productOwners[productId].length;
-    }
-    function addProduct(uint productId, string memory productName, address owner) private {
-        productOwners[productId].push(owner);
-        companies[owner].listOfSupply.push(Product({
-            productId: productId,
-            productName: productName,
-            exist: true
-        }));
-        listOfProducts[productId] = Product({
-            productId: productId,
-            productName: productName,
-            exist: true
-        });
-        products.push(Product({
-            productId: productId,
-            productName: productName,
-            exist: true
-        }));
-    }
-    function addProductWithoutRecipe(uint productId, string memory productName, address owner) public {
-        require(msg.sender == networkOwner);
-        addProduct(productId, productName, owner);
-    }
-    function addProductWithRecipe(uint productId, string memory productName, Product[] memory prerequisiteSupplies, uint[] memory quantityPrerequisiteSupplies) public {
-        require(companies[msg.sender].exist);
-        addProduct(productId, productName, msg.sender);
-        Recipe storage recipe = companies[msg.sender].recipes.push();
-        for(uint i = 0; i < prerequisiteSupplies.length; i++) {
-            recipe.prerequisites.push(prerequisiteSupplies[i]);
+    // function getProductLength() public view returns (uint) {
+    //     return products.length;
+    // }
+    // function getProductOwnerLength(uint productId) public view returns (uint) {
+    //     return productOwners[productId].length;
+    // }
+    function addProduct(uint productId, string memory productName, address company_address) public {
+        require(companies[msg.sender].exist || msg.sender == networkOwner);
+        // for(uint i = 0; i < products.length; i++) {
+        //     if(keccak256(abi.encodePacked(products[i].productName)) == keccak256(abi.encodePacked(productName))) {
+        //         revert();
+        //     }
+        // }
+        for(uint i = 0; i < productNames.length; i++) {
+            if(keccak256(abi.encodePacked(productNames[i])) == keccak256(abi.encodePacked(productName))) {
+                revert();
+            }
         }
-        recipe.supply = listOfProducts[productId];
-        recipe.quantities = quantityPrerequisiteSupplies;
+        // productOwners[productId].push(owner);
+        // companies[owner].listOfSupply.push(Product({
+        //     productId: productId,
+        //     productName: productName,
+        //     exist: true
+        // }));
+        if(msg.sender == networkOwner) {
+            companies[company_address].listOfSupply.push(productId);
+        } else {
+            companies[msg.sender].listOfSupply.push(productId);
+        }
+        productNames.push(productName);
+        // listOfProducts[productId] = Product({
+        //     productId: productId,
+        //     productName: productName,
+        //     exist: true
+        // });
+        // products.push(Product({
+        //     productId: productId,
+        //     productName: productName,
+        //     exist: true
+        // }));
     }
+    // function addProductWithoutRecipe(uint productId, string memory productName, address owner) public {
+    //     require(msg.sender == networkOwner);
+    //     addProduct(productId, productName, owner);
+    // }
+    // function addProductWithRecipe(uint productId, string memory productName, uint[] memory prerequisiteSupplies, uint[] memory quantityPrerequisiteSupplies) public {
+    //     require(companies[msg.sender].exist);
+    //     addProduct(productId, productName, msg.sender);
+    //     Recipe storage recipe = companies[msg.sender].recipes.push();
+    //     for(uint i = 0; i < prerequisiteSupplies.length; i++) {
+    //         recipe.prerequisites.push(prerequisiteSupplies[i]);
+    //     }
+    //     recipe.supply = listOfProducts[productId];
+    //     recipe.quantities = quantityPrerequisiteSupplies;
+    // }
     // function deleteProduct(uint productId) public {
     //     require(companies[msg.sender].exist);
     //     for(uint i = 0; i < productOwners[msg.sender].length; i++) {
@@ -158,18 +175,19 @@ contract SupplyChainNetwork {
         require(companies[msg.sender].owner == msg.sender);
         return companyPrerequisiteSupplies[msg.sender][productId];
     }
-    function getRecipe(uint productId) public view returns (Recipe memory) {
-        require(companies[msg.sender].owner == msg.sender);
-        for(uint i = 0; i < companies[msg.sender].recipes.length; i++) {
-            if(companies[msg.sender].recipes[i].supply.productId == productId) {
-                return companies[msg.sender].recipes[i];
-            }
-        }
-        revert("Recipe not found for that product ID");
-    }
+    // function getRecipe(uint productId) public view returns (Recipe memory) {
+    //     require(companies[msg.sender].owner == msg.sender);
+    //     for(uint i = 0; i < companies[msg.sender].recipes.length; i++) {
+    //         if(companies[msg.sender].recipes[i].supply.productId == productId) {
+    //             return companies[msg.sender].recipes[i];
+    //         }
+    //     }
+    //     revert("Recipe not found for that product ID");
+    // }
     function convertToSupply(uint productId, uint numberOfSupply, uint supplyId) public {
         for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
-            if(companies[msg.sender].listOfSupply[i].productId == productId) {
+            // if(companies[msg.sender].listOfSupply[i].productId == productId) {
+            if(companies[msg.sender].listOfSupply[i] == productId) {
                 companySupplies[msg.sender][productId].total += numberOfSupply;
                 companySupplies[msg.sender][productId].supplyId.push(supplyId);
                 companySupplies[msg.sender][productId].quantities.push(numberOfSupply);
@@ -324,7 +342,8 @@ contract SupplyChainNetwork {
         // sets pre requisite supply exists
         companyPrerequisiteSupplies[companyContract.from][companyContract.productId].exist = true;
         // pushes new product in the contract sender's list of prerequisites
-        companies[companyContract.from].listOfPrerequisites.push(listOfProducts[companyContract.productId]);
+        // companies[companyContract.from].listOfPrerequisites.push(listOfProducts[companyContract.productId]);
+        companies[companyContract.from].listOfPrerequisites.push(companyContract.productId);
         // adds a new company in the contract sender's list of downstreams
         companies[companyContract.from].downstream.push(CompanyProduct({
             companyId: companyContract.to,
