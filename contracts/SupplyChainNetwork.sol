@@ -67,8 +67,8 @@ contract SupplyChainNetwork {
         APPROVED,
         REJECTED
     }
-    event Requests(uint requestId, address from, address to, uint productId, uint quantity, STATE state, uint256 timestamp);
-    event Contracts(uint id, address from, address to, uint productId, STATE state, uint256 timestamp);
+    event Requests(uint indexed requestId, address indexed from, address indexed to, uint productId, uint quantity, STATE state, uint256 timestamp);
+    event Contracts(uint indexed contractId, address indexed from, address indexed to, uint productId, STATE state, uint256 timestamp);
 
     function getCompany(address owner) public view returns (Company memory) {
         return companies[owner];
