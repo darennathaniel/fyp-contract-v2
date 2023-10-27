@@ -43,19 +43,6 @@ contract("SupplyChainNetwork", (accounts) => {
     }
   });
   it("Add a new product without recipe by owner", async () => {
-    // await supplyChainNetwork.addProductWithoutRecipe.sendTransaction(
-    //   2,
-    //   "Egg",
-    //   accounts[2],
-    //   {
-    //     from: accounts[0],
-    //   }
-    // );
-    // const product2 = await supplyChainNetwork.listOfProducts(2);
-    // assert.equal(product2.productId, 2);
-    // assert.equal(product2.productName, "Egg");
-    // const productOwners = await supplyChainNetwork.productOwners(2, 0);
-    // assert.equal(productOwners, accounts[2]);
     await productContract.addProductWithoutRecipe.sendTransaction(
       2,
       "Egg",
@@ -79,32 +66,37 @@ contract("SupplyChainNetwork", (accounts) => {
     const productName = await supplyChainNetwork.productNames(0);
     assert.equal(productName, "Egg");
   });
+  it("Add a new product without recipe with same name by owner should throw an error (product contract)", async () => {
+    try {
+      await productContract.addProductWithoutRecipe.sendTransaction(
+        100,
+        "Egg",
+        accounts[2],
+        {
+          from: accounts[0],
+        }
+      );
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Add a new product without recipe with same name by owner should throw an error (supply chain network contract)", async () => {
+    try {
+      await supplyChainNetwork.addProduct.sendTransaction(
+        100,
+        "Egg",
+        accounts[2],
+        {
+          from: accounts[0],
+        }
+      );
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
   it("Add a new product with recipe by company", async () => {
-    // await supplyChainNetwork.addProductWithRecipe.sendTransaction(
-    //   1,
-    //   "Omelette",
-    //   [
-    //     {
-    //       productId: 2,
-    //       productName: "Egg",
-    //     },
-    //   ],
-    //   [4],
-    //   {
-    //     from: accounts[1],
-    //   }
-    // );
-    // const product1 = await supplyChainNetwork.listOfProducts(1);
-    // assert.equal(product1.productId, 1);
-    // assert.equal(product1.productName, "Omelette");
-    // const productOwners = await supplyChainNetwork.productOwners(1, 0);
-    // assert.equal(productOwners, accounts[1]);
-    // const company1 = await supplyChainNetwork.getCompany(accounts[1]);
-    // assert.equal(company1.recipes[0].supply.productId, 1);
-    // assert.equal(company1.recipes[0].supply.productName, "Omelette");
-    // assert.equal(company1.recipes[0].prerequisites[0].productId, 2);
-    // assert.equal(company1.recipes[0].prerequisites[0].productName, "Egg");
-    // assert.equal(company1.recipes[0].quantities[0], 4);
     await productContract.addProductWithRecipe.sendTransaction(
       1,
       "Omelette",
@@ -546,5 +538,57 @@ contract("SupplyChainNetwork", (accounts) => {
     assert.equal(Array.isArray(pastSupply4), true);
     assert.equal(pastSupply4[0], 1);
     assert.equal(pastSupply4[1], 2);
+  });
+  it("Company adds new existing product without recipe", async () => {
+    await supplyChainNetwork.addProductOwner.sendTransaction(2, "Egg", {
+      from: accounts[1],
+    });
+    await productContract.addProductOwner.sendTransaction(2, {
+      from: accounts[1],
+    });
+    const address = await productContract.productOwners(2, 1);
+    const company = await supplyChainNetwork.getCompany.call(accounts[1]);
+    assert.equal(address, accounts[1]);
+    assert.equal(company.listOfSupply[company.listOfSupply.length - 1], 2);
+  });
+  it("Company adds an already existing product should throw an error (supply chain network contract)", async () => {
+    try {
+      await supplyChainNetwork.addProductOwner.sendTransaction(2, "Egg", {
+        from: accounts[1],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Company adds an already existing product should throw an error (product contract)", async () => {
+    try {
+      await productContract.addProductOwner.sendTransaction(1, {
+        from: accounts[1],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Company adds new existing product with recipe should throw an error (product contract)", async () => {
+    try {
+      await productContract.addProductOwner.sendTransaction(2, {
+        from: accounts[2],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Company adds new existing product with recipe should throw an error (supply chain network contract)", async () => {
+    try {
+      await supplyChainNetwork.addProductOwner.sendTransaction(2, "Omelette", {
+        from: accounts[2],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
   });
 });

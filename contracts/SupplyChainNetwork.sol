@@ -4,11 +4,6 @@ pragma experimental ABIEncoderV2;
 
 contract SupplyChainNetwork {
     address public networkOwner = msg.sender;
-    // struct Product {
-    //     uint productId;
-    //     string productName;
-    //     bool exist;
-    // }
     struct CompanyContract {
         uint id;
         address from;
@@ -19,11 +14,6 @@ contract SupplyChainNetwork {
         address companyId;
         uint productId;
     }
-    // struct Recipe {
-    //     Product supply;
-    //     Product[] prerequisites;
-    //     uint[] quantities;
-    // }
     struct Request {
         uint id;
         address from;
@@ -58,9 +48,6 @@ contract SupplyChainNetwork {
     mapping(address => mapping(uint => Supply)) public companySupplies;
     mapping(address => mapping(uint => Supply)) public companyPrerequisiteSupplies;
     Company[] public headCompanies;
-    // mapping(uint => address[]) public productOwners;
-    // mapping(uint => uint) public listOfProducts;
-    // Product[] public products;
     string[] public productNames;
     mapping(uint => PastSupply) public pastSupplies; // uint[] refers to supplyId from MongoDB
     enum STATE {
@@ -85,84 +72,30 @@ contract SupplyChainNetwork {
     function getHeadCompaniesLength() public view returns (uint) {
         return headCompanies.length;
     }
-    // function getProductLength() public view returns (uint) {
-    //     return products.length;
-    // }
-    // function getProductOwnerLength(uint productId) public view returns (uint) {
-    //     return productOwners[productId].length;
-    // }
     function addProduct(uint productId, string memory productName, address company_address) public {
         require(companies[msg.sender].exist || msg.sender == networkOwner);
-        // for(uint i = 0; i < products.length; i++) {
-        //     if(keccak256(abi.encodePacked(products[i].productName)) == keccak256(abi.encodePacked(productName))) {
-        //         revert();
-        //     }
-        // }
         for(uint i = 0; i < productNames.length; i++) {
             if(keccak256(abi.encodePacked(productNames[i])) == keccak256(abi.encodePacked(productName))) {
                 revert();
             }
         }
-        // productOwners[productId].push(owner);
-        // companies[owner].listOfSupply.push(Product({
-        //     productId: productId,
-        //     productName: productName,
-        //     exist: true
-        // }));
         if(msg.sender == networkOwner) {
             companies[company_address].listOfSupply.push(productId);
         } else {
             companies[msg.sender].listOfSupply.push(productId);
         }
         productNames.push(productName);
-        // listOfProducts[productId] = Product({
-        //     productId: productId,
-        //     productName: productName,
-        //     exist: true
-        // });
-        // products.push(Product({
-        //     productId: productId,
-        //     productName: productName,
-        //     exist: true
-        // }));
     }
-    // function addProductWithoutRecipe(uint productId, string memory productName, address owner) public {
-    //     require(msg.sender == networkOwner);
-    //     addProduct(productId, productName, owner);
-    // }
-    // function addProductWithRecipe(uint productId, string memory productName, uint[] memory prerequisiteSupplies, uint[] memory quantityPrerequisiteSupplies) public {
-    //     require(companies[msg.sender].exist);
-    //     addProduct(productId, productName, msg.sender);
-    //     Recipe storage recipe = companies[msg.sender].recipes.push();
-    //     for(uint i = 0; i < prerequisiteSupplies.length; i++) {
-    //         recipe.prerequisites.push(prerequisiteSupplies[i]);
-    //     }
-    //     recipe.supply = listOfProducts[productId];
-    //     recipe.quantities = quantityPrerequisiteSupplies;
-    // }
-    // function deleteProduct(uint productId) public {
-    //     require(companies[msg.sender].exist);
-    //     for(uint i = 0; i < productOwners[msg.sender].length; i++) {
-    //         if(productOwners[msg.sender][i].productId == productId) {
-    //             productOwners[msg.sender][i] = productOwners[msg.sender][productOwners[msg.sender].length - 1];
-    //             productOwners[msg.sender].pop();
-    //             uint productIndex = 0;
-    //             for(uint index = 0; index < products.length; index++) {
-    //                 Product memory product = products[index];
-    //                 if(product.productId == productId) {
-    //                     productIndex = index;
-    //                     break;
-    //                 }
-    //             }
-    //             products[productIndex] = products[products.length - 1];
-    //             products.pop();
-    //             delete listOfProducts[productId];
-    //             break;
-    //         }
-    //     }
-    //     // revert("Company owner does not own this product");
-    //     revert();
-    // }
+    function addProductOwner(uint productId, string memory productName) public {
+        require(companies[msg.sender].exist);
+        for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
+            if(companies[msg.sender].listOfSupply[i] == productId) {
+                revert();
+            }
+        }
+        companies[msg.sender].listOfSupply.push(productId);
+        productNames.push(productName);
+    }
     function getPastSupply(uint supplyId) public view returns (uint[] memory) {
         require(pastSupplies[supplyId].exist);
         return pastSupplies[supplyId].pastSupply;
@@ -175,15 +108,6 @@ contract SupplyChainNetwork {
         require(companies[msg.sender].owner == msg.sender);
         return companyPrerequisiteSupplies[msg.sender][productId];
     }
-    // function getRecipe(uint productId) public view returns (Recipe memory) {
-    //     require(companies[msg.sender].owner == msg.sender);
-    //     for(uint i = 0; i < companies[msg.sender].recipes.length; i++) {
-    //         if(companies[msg.sender].recipes[i].supply.productId == productId) {
-    //             return companies[msg.sender].recipes[i];
-    //         }
-    //     }
-    //     revert("Recipe not found for that product ID");
-    // }
     function convertToSupply(uint productId, uint numberOfSupply, uint supplyId) public {
         for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
             // if(companies[msg.sender].listOfSupply[i].productId == productId) {
