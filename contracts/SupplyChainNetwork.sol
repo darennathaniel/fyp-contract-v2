@@ -37,7 +37,7 @@ contract SupplyChainNetwork {
         string name;
         uint[] listOfSupply;
         uint[] listOfPrerequisites;
-        address[] upstream;
+        CompanyProduct[] upstream;
         CompanyProduct[] downstream;
         Request[] incomingRequests;
         Request[] outgoingRequests;
@@ -274,7 +274,10 @@ contract SupplyChainNetwork {
             productId: companyContract.productId
         }));
         // adds a new company in the supplier's list of upstreams
-        companies[companyContract.to].upstream.push(companyContract.from);
+        companies[companyContract.to].upstream.push(CompanyProduct({
+            companyId: companyContract.from,
+            productId: companyContract.productId
+        }));
         // if supplier is a headCompany, remove it
         for(uint i = 0; i < headCompanies.length; i++) {
             if(headCompanies[i].owner == msg.sender) {
