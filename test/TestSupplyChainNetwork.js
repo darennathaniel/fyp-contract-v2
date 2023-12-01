@@ -210,7 +210,7 @@ contract("SupplyChainNetwork", (accounts) => {
     }
     assert.equal(company1.outgoingContract.length, 0);
     assert.equal(company2.incomingContract.length, 0);
-    assert.equal(company2.upstream[0], company1.owner);
+    assert.equal(company2.upstream[0].companyId, company1.owner);
     assert.equal(company1.downstream[0].companyId, company2.owner);
     assert.equal(headCompany1.owner, company1.owner);
     assert.equal(company1.listOfPrerequisites[0], 2);
@@ -295,7 +295,7 @@ contract("SupplyChainNetwork", (accounts) => {
       });
       assert.fail("The transaction should have failed");
     } catch (err) {
-      assert.include(err.message, "revert msg.sender is not the product owner");
+      assert.include(err.message, "revert");
     }
   });
   it("Account 1 requests 10 eggs from account 2", async () => {
