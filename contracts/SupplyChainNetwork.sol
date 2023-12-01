@@ -26,6 +26,7 @@ contract SupplyChainNetwork {
         address owner;
         uint productId;
         address[] approvals;
+        bool rejected;
     }
     struct Supply {
         uint total;
@@ -126,7 +127,7 @@ contract SupplyChainNetwork {
                 return;
             }
         }
-        revert("msg.sender is not the product owner");
+        revert();
     }
     function convertPrerequisiteToSupply(uint newSupplyProductId, uint numberOfNewSupply, uint newSupplyId, uint[] memory prerequisiteProductIds, uint[] memory prerequisiteSupplyIds, uint[] memory prerequisiteQuantities) public {
         require(companies[msg.sender].owner == msg.sender);
@@ -339,13 +340,17 @@ contract SupplyChainNetwork {
             }
         }
     }
-    function approveDeleteRequest(uint id, uint productId, address from) public {
+    function respondDeleteRequest(uint id, uint productId, address from, bool approve) public {
         for(uint i = 0; i < companies[from].upstream.length; i++) {
             // check if the approval is the sender's upstream and has the same product ID
             if(companies[from].upstream[i].companyId == msg.sender && companies[from].upstream[i].productId == productId) {
                 for(uint j = 0; j < companies[from].outgoingDeleteRequests.length; j++) {
                     if(companies[from].outgoingDeleteRequests[j].id == id) {
-                        companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
+                        if(approve) {
+                            companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
+                        } else {
+                            companies[from].outgoingDeleteRequests[j].rejected = true;
+                        }
                     }
                 }
                 // remove the deleteRequest ID from approval's incomingDeleteRequests
