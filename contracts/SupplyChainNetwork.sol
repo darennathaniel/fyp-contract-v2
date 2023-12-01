@@ -329,7 +329,7 @@ contract SupplyChainNetwork {
         emit Contracts(companyContract.id, companyContract.from, companyContract.to, companyContract.productId, STATE.REJECTED, block.timestamp);
     }
     function sendDeleteRequest(uint id, uint productId) public {
-        require(companies[msg.sender].exist);
+        require(companies[msg.sender].exist && companySupplies[msg.sender][productId].exist);
         DeleteRequest storage outgoingDeleteRequest = companies[msg.sender].outgoingDeleteRequests.push();
         outgoingDeleteRequest.id = id;
         outgoingDeleteRequest.productId = productId;

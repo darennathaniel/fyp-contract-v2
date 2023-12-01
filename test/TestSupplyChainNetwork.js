@@ -170,7 +170,7 @@ contract("SupplyChainNetwork", (accounts) => {
       );
     }
   });
-  it("Send contract from account 1 to account 2", async () => {
+  it("Account 1 sends contract to account 2", async () => {
     await supplyChainNetwork.sendContract.sendTransaction(
       {
         id: 1,
@@ -584,6 +584,127 @@ contract("SupplyChainNetwork", (accounts) => {
   it("Company adds new existing product with recipe should throw an error (supply chain network contract)", async () => {
     try {
       await supplyChainNetwork.addProductOwner.sendTransaction(2, "Omelette", {
+        from: accounts[2],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Account 1 sends a delete request for product ID 2 should throw an error", async () => {
+    try {
+      await supplyChainNetwork.sendDeleteRequest.sendTransaction(1, 2, {
+        from: accounts[1],
+      });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Account 2 sends a delete request for supply product ID 2", async () => {
+    await supplyChainNetwork.sendDeleteRequest.sendTransaction(1, 2, {
+      from: accounts[2],
+    });
+    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    assert.equal(account2.outgoingDeleteRequests[0].id, 1);
+    assert.equal(account2.outgoingDeleteRequests[0].productId, 2);
+    assert.equal(account2.outgoingDeleteRequests[0].owner, accounts[2]);
+    assert.equal(account2.outgoingDeleteRequests[0].rejected, false);
+    assert.equal(account2.outgoingDeleteRequests[0].approvals.length, 0);
+    assert.equal(account1.incomingDeleteRequests[0], 1);
+  });
+  it("Account 1 rejects the request ID 1", async () => {
+    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+      1,
+      2,
+      accounts[2],
+      false,
+      {
+        from: accounts[1],
+      }
+    );
+    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    assert.equal(account1.incomingDeleteRequests.length, 0);
+    assert.equal(account2.outgoingDeleteRequests[0].rejected, true);
+  });
+  it("Account 1 approves the request ID 2", async () => {
+    await supplyChainNetwork.sendDeleteRequest.sendTransaction(2, 2, {
+      from: accounts[2],
+    });
+    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+      2,
+      2,
+      accounts[2],
+      true,
+      {
+        from: accounts[1],
+      }
+    );
+    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    assert.equal(account1.incomingDeleteRequests.length, 0);
+    assert.equal(account2.outgoingDeleteRequests[1].rejected, false);
+    assert.equal(account2.outgoingDeleteRequests[1].approvals.length, 1);
+    assert.equal(account2.outgoingDeleteRequests[1].approvals[0], accounts[1]);
+  });
+  it("Account 4 responds to the request should throw an error", async () => {
+    try {
+      await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+        2,
+        2,
+        accounts[2],
+        true,
+        {
+          from: accounts[4],
+        }
+      );
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Account 2 deletes supply for product ID 2 with not enough approvals should throw an error", async () => {
+    try {
+      await supplyChainNetwork.deleteSupply.sendTransaction(
+        2,
+        [
+          {
+            companyId: accounts[1],
+            productId: 2,
+          },
+        ],
+        {
+          from: accounts[2],
+        }
+      );
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Account 2 deletes supply for product ID 2 with enough approvals", async () => {
+    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+      2,
+      2,
+      accounts[2],
+      true,
+      {
+        from: accounts[3],
+      }
+    );
+    await supplyChainNetwork.deleteSupply.sendTransaction(2, [], {
+      from: accounts[2],
+    });
+    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
+    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    const account3 = await supplyChainNetwork.getCompany.call(accounts[3]);
+    assert.equal(account2.upstream.length, 0);
+    assert.equal(account1.downstream.length, 0);
+    assert.equal(account3.downstream.length, 0);
+    try {
+      await supplyChainNetwork.getSupply.call(2, {
         from: accounts[2],
       });
       assert.fail("The transaction should have failed");
