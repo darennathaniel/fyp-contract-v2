@@ -21,6 +21,12 @@ contract SupplyChainNetwork {
         uint productId;
         uint quantity;
     }
+    struct DeleteRequest {
+        uint id;
+        address owner;
+        uint productId;
+        address[] approvals;
+    }
     struct Supply {
         uint total;
         uint[] supplyId;
@@ -43,6 +49,8 @@ contract SupplyChainNetwork {
         Request[] outgoingRequests;
         CompanyContract[] incomingContract;
         CompanyContract[] outgoingContract;
+        uint[] incomingDeleteRequests;
+        DeleteRequest[] outgoingDeleteRequests;
     }
     mapping(address => Company) public companies;
     mapping(address => mapping(uint => Supply)) public companySupplies;
@@ -110,7 +118,6 @@ contract SupplyChainNetwork {
     }
     function convertToSupply(uint productId, uint numberOfSupply, uint supplyId) public {
         for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
-            // if(companies[msg.sender].listOfSupply[i].productId == productId) {
             if(companies[msg.sender].listOfSupply[i] == productId) {
                 companySupplies[msg.sender][productId].total += numberOfSupply;
                 companySupplies[msg.sender][productId].supplyId.push(supplyId);
@@ -124,7 +131,6 @@ contract SupplyChainNetwork {
     function convertPrerequisiteToSupply(uint newSupplyProductId, uint numberOfNewSupply, uint newSupplyId, uint[] memory prerequisiteProductIds, uint[] memory prerequisiteSupplyIds, uint[] memory prerequisiteQuantities) public {
         require(companies[msg.sender].owner == msg.sender);
         for(uint i = 0; i < prerequisiteProductIds.length; i++) { // loops through prerequisite product IDs
-            // Supply memory prerequisiteSupply = getPrerequisiteSupply(prerequisiteProductIds[i]);
             for(uint j = 0; j < companyPrerequisiteSupplies[msg.sender][prerequisiteProductIds[i]].supplyId.length; j++) { // loops through storage prerequisite supply IDs
                 for(uint k = 0; k < prerequisiteSupplyIds.length; k++) { // loops through prerequisite supply ID passed in by backend, indicates the supply IDs to be deducted
                     pastSupplies[newSupplyId].pastSupply.push(prerequisiteSupplyIds[k]); // adds all prerequisite supply IDs that is part of creating the new supply
@@ -168,8 +174,6 @@ contract SupplyChainNetwork {
         companies[request.to].incomingRequests.push(request);
     }
     function approveRequest(Request memory request, uint[] memory supplyIds, uint[] memory quantities) public {
-        // require(companySupplies[msg.sender][request.product.productId].total >= request.quantity, "");
-        // require(companyPrerequisiteSupplies[request.from][request.product.productId].exist, "");
         require(request.to == msg.sender);
         // reduce the supply quantity of to company
         for(uint i = 0; i < companySupplies[request.to][request.productId].supplyId.length; i++) {
@@ -266,7 +270,6 @@ contract SupplyChainNetwork {
         // sets pre requisite supply exists
         companyPrerequisiteSupplies[companyContract.from][companyContract.productId].exist = true;
         // pushes new product in the contract sender's list of prerequisites
-        // companies[companyContract.from].listOfPrerequisites.push(listOfProducts[companyContract.productId]);
         companies[companyContract.from].listOfPrerequisites.push(companyContract.productId);
         // adds a new company in the contract sender's list of downstreams
         companies[companyContract.from].downstream.push(CompanyProduct({
@@ -323,5 +326,66 @@ contract SupplyChainNetwork {
         }
         companies[companyContract.to].incomingContract.pop();
         emit Contracts(companyContract.id, companyContract.from, companyContract.to, companyContract.productId, STATE.REJECTED, block.timestamp);
+    }
+    function sendDeleteRequest(uint id, uint productId) public {
+        require(companies[msg.sender].exist);
+        DeleteRequest storage outgoingDeleteRequest = companies[msg.sender].outgoingDeleteRequests.push();
+        outgoingDeleteRequest.id = id;
+        outgoingDeleteRequest.productId = productId;
+        outgoingDeleteRequest.owner = msg.sender;
+        for(uint i = 0; i < companies[msg.sender].upstream.length; i++) {
+            if(companies[msg.sender].upstream[i].productId == productId) {
+                companies[companies[msg.sender].upstream[i].companyId].incomingDeleteRequests.push(id);
+            }
+        }
+    }
+    function approveDeleteRequest(uint id, uint productId, address from) public {
+        for(uint i = 0; i < companies[from].upstream.length; i++) {
+            // check if the approval is the sender's upstream and has the same product ID
+            if(companies[from].upstream[i].companyId == msg.sender && companies[from].upstream[i].productId == productId) {
+                for(uint j = 0; j < companies[from].outgoingDeleteRequests.length; j++) {
+                    if(companies[from].outgoingDeleteRequests[j].id == id) {
+                        companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
+                    }
+                }
+                // remove the deleteRequest ID from approval's incomingDeleteRequests
+                for(uint j = 0; j < companies[msg.sender].incomingDeleteRequests.length; j++) {
+                    if(companies[msg.sender].incomingDeleteRequests[j] == id) {
+                        companies[msg.sender].incomingDeleteRequests[j] = companies[msg.sender].incomingDeleteRequests[companies[msg.sender].incomingDeleteRequests.length - 1];
+                        companies[msg.sender].incomingDeleteRequests.pop();
+                        break;
+                    }
+                }
+                return;
+            }
+        }
+        revert();
+    }
+    function deleteSupply(uint id, CompanyProduct[] memory upstreamLeft) public {
+        for(uint i = 0; i < companies[msg.sender].outgoingDeleteRequests.length; i++) {
+            if(companies[msg.sender].outgoingDeleteRequests[i].id == id && companies[msg.sender].outgoingDeleteRequests[i].approvals.length == companies[msg.sender].upstream.length) {
+                // loops through all the upstream company of msg.sender
+                for(uint j = 0; j < companies[msg.sender].upstream.length; j++) {
+                    // remove msg.sender in all upstream company's downstream
+                    for(uint k = 0; k < companies[companies[msg.sender].upstream[j].companyId].downstream.length; k++) {
+                        if(companies[companies[msg.sender].upstream[j].companyId].downstream[k].companyId == msg.sender && companies[companies[msg.sender].upstream[j].companyId].downstream[k].productId == companies[msg.sender].outgoingDeleteRequests[i].productId) {
+                            companies[companies[msg.sender].upstream[j].companyId].downstream[k] = companies[companies[msg.sender].upstream[j].companyId].downstream[companies[companies[msg.sender].upstream[j].companyId].downstream.length - 1];
+                            companies[companies[msg.sender].upstream[j].companyId].downstream.pop();
+                            break;
+                        }
+                    }
+                }
+                delete companies[msg.sender].upstream;
+                for(uint j = 0; j < upstreamLeft.length; j++) {
+                    companies[msg.sender].upstream.push(upstreamLeft[j]);
+                }
+                delete companySupplies[msg.sender][companies[msg.sender].outgoingDeleteRequests[i].productId];
+                // removes request from outgoingDeleteRequest since operation is done.
+                companies[msg.sender].outgoingDeleteRequests[i] = companies[msg.sender].outgoingDeleteRequests[companies[msg.sender].outgoingDeleteRequests.length - 1];
+                companies[msg.sender].outgoingDeleteRequests.pop();
+                return;
+            }
+        }
+        revert();
     }
 }
