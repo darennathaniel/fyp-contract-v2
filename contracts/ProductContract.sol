@@ -78,6 +78,14 @@ contract ProductContract {
         }
         productOwners[productId].push(msg.sender);
     }
+    function deleteProductOwner(uint productId) public {
+        for(uint i = 0; i < productOwners[productId].length; i++) {
+            if(msg.sender == productOwners[productId][i]) {
+                productOwners[productId][i] = productOwners[productId][productOwners[productId].length - 1];
+                productOwners[productId].pop();
+            }
+        }
+    }
     function getRecipe(uint productId) public view returns (Recipe memory) {
         require(companies[msg.sender]);
         for(uint i = 0; i < companyRecipes[msg.sender].length; i++) {

@@ -21,13 +21,6 @@ contract SupplyChainNetwork {
         uint productId;
         uint quantity;
     }
-    struct DeleteRequest {
-        uint id;
-        address owner;
-        uint productId;
-        address[] approvals;
-        bool rejected;
-    }
     struct Supply {
         uint total;
         uint[] supplyId;
@@ -37,6 +30,11 @@ contract SupplyChainNetwork {
     struct PastSupply {
         uint[] pastSupply;
         bool exist;
+    }
+    struct DeleteRequest {
+        uint id;
+        uint approvals;
+        string code;
     }
     struct Company {
         address owner;
@@ -50,8 +48,7 @@ contract SupplyChainNetwork {
         Request[] outgoingRequests;
         CompanyContract[] incomingContract;
         CompanyContract[] outgoingContract;
-        uint[] incomingDeleteRequests;
-        DeleteRequest[] outgoingDeleteRequests;
+        DeleteRequest[] deleteRequest;
     }
     mapping(address => Company) public companies;
     mapping(address => mapping(uint => Supply)) public companySupplies;
@@ -77,7 +74,6 @@ contract SupplyChainNetwork {
         company.exist = true;
         headCompanies.push(company);
     }
-    // function deleteCompany(address companyAddress) public {}
     function getHeadCompaniesLength() public view returns (uint) {
         return headCompanies.length;
     }
@@ -328,66 +324,61 @@ contract SupplyChainNetwork {
         companies[companyContract.to].incomingContract.pop();
         emit Contracts(companyContract.id, companyContract.from, companyContract.to, companyContract.productId, STATE.REJECTED, block.timestamp);
     }
-    function sendDeleteRequest(uint id, uint productId) public {
-        require(companies[msg.sender].exist && companySupplies[msg.sender][productId].exist);
-        DeleteRequest storage outgoingDeleteRequest = companies[msg.sender].outgoingDeleteRequests.push();
-        outgoingDeleteRequest.id = id;
-        outgoingDeleteRequest.productId = productId;
-        outgoingDeleteRequest.owner = msg.sender;
-        for(uint i = 0; i < companies[msg.sender].upstream.length; i++) {
-            if(companies[msg.sender].upstream[i].productId == productId) {
-                companies[companies[msg.sender].upstream[i].companyId].incomingDeleteRequests.push(id);
-            }
-        }
-    }
-    function respondDeleteRequest(uint id, uint productId, address from, bool approve) public {
-        for(uint i = 0; i < companies[from].upstream.length; i++) {
-            // check if the approval is the sender's upstream and has the same product ID
-            if(companies[from].upstream[i].companyId == msg.sender && companies[from].upstream[i].productId == productId) {
-                for(uint j = 0; j < companies[from].outgoingDeleteRequests.length; j++) {
-                    if(companies[from].outgoingDeleteRequests[j].id == id) {
-                        if(approve) {
-                            companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
-                        } else {
-                            companies[from].outgoingDeleteRequests[j].rejected = true;
-                        }
-                    }
-                }
-                // remove the deleteRequest ID from approval's incomingDeleteRequests
-                for(uint j = 0; j < companies[msg.sender].incomingDeleteRequests.length; j++) {
-                    if(companies[msg.sender].incomingDeleteRequests[j] == id) {
-                        companies[msg.sender].incomingDeleteRequests[j] = companies[msg.sender].incomingDeleteRequests[companies[msg.sender].incomingDeleteRequests.length - 1];
-                        companies[msg.sender].incomingDeleteRequests.pop();
-                        break;
-                    }
-                }
+    function sendDeleteRequest(uint id, uint productId, string memory code) public {
+        for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
+            if(companies[msg.sender].listOfSupply[i] == productId) {
+                companies[msg.sender].deleteRequest.push(DeleteRequest({
+                    id: id,
+                    approvals: 0,
+                    code: code
+                }));
                 return;
             }
         }
         revert();
     }
-    function deleteSupply(uint id, CompanyProduct[] memory upstreamLeft) public {
-        for(uint i = 0; i < companies[msg.sender].outgoingDeleteRequests.length; i++) {
-            if(companies[msg.sender].outgoingDeleteRequests[i].id == id && companies[msg.sender].outgoingDeleteRequests[i].approvals.length == companies[msg.sender].upstream.length) {
+    function addApproval(uint id, string memory code, address owner) public {
+        for(uint i = 0; i < companies[owner].deleteRequest.length; i++) {
+            if(companies[owner].deleteRequest[i].id == id && keccak256(abi.encodePacked(companies[owner].deleteRequest[i].code)) == keccak256(abi.encodePacked(code))) {
+                companies[owner].deleteRequest[i].approvals += 1;
+                return;
+            }
+        }
+        revert();
+    }
+    function deleteSupply(uint id, uint productId, CompanyProduct[] memory upstreamLeft, string memory code) public {
+        for(uint i = 0; i < companies[msg.sender].deleteRequest.length; i++) {
+            if(companies[msg.sender].deleteRequest[i].id == id && keccak256(abi.encodePacked(companies[msg.sender].deleteRequest[i].code)) == keccak256(abi.encodePacked(code)) && companies[msg.sender].deleteRequest[i].approvals == companies[msg.sender].upstream.length) {
                 // loops through all the upstream company of msg.sender
                 for(uint j = 0; j < companies[msg.sender].upstream.length; j++) {
                     // remove msg.sender in all upstream company's downstream
                     for(uint k = 0; k < companies[companies[msg.sender].upstream[j].companyId].downstream.length; k++) {
-                        if(companies[companies[msg.sender].upstream[j].companyId].downstream[k].companyId == msg.sender && companies[companies[msg.sender].upstream[j].companyId].downstream[k].productId == companies[msg.sender].outgoingDeleteRequests[i].productId) {
+                        if(companies[companies[msg.sender].upstream[j].companyId].downstream[k].companyId == msg.sender && companies[companies[msg.sender].upstream[j].companyId].downstream[k].productId == productId) {
                             companies[companies[msg.sender].upstream[j].companyId].downstream[k] = companies[companies[msg.sender].upstream[j].companyId].downstream[companies[companies[msg.sender].upstream[j].companyId].downstream.length - 1];
                             companies[companies[msg.sender].upstream[j].companyId].downstream.pop();
                             break;
                         }
                     }
                 }
+                // removes all upstream and adds back upstream that does not use the deleted product ID
                 delete companies[msg.sender].upstream;
                 for(uint j = 0; j < upstreamLeft.length; j++) {
                     companies[msg.sender].upstream.push(upstreamLeft[j]);
                 }
-                delete companySupplies[msg.sender][companies[msg.sender].outgoingDeleteRequests[i].productId];
+                // if current does not have anymore upstream, push self to headCompanies
+                if(upstreamLeft.length == 0) {
+                    headCompanies.push(companies[msg.sender]);
+                }
+                // delete msg.sender from product owner
+                for(uint j = 0; j < companies[msg.sender].listOfSupply.length; j++) {
+                    if(companies[msg.sender].listOfSupply[j] == productId) {
+                        companies[msg.sender].listOfSupply[j] = companies[msg.sender].listOfSupply[companies[msg.sender].listOfSupply.length - 1];
+                        companies[msg.sender].listOfSupply.pop();
+                    }
+                }
                 // removes request from outgoingDeleteRequest since operation is done.
-                companies[msg.sender].outgoingDeleteRequests[i] = companies[msg.sender].outgoingDeleteRequests[companies[msg.sender].outgoingDeleteRequests.length - 1];
-                companies[msg.sender].outgoingDeleteRequests.pop();
+                companies[msg.sender].deleteRequest[i] = companies[msg.sender].deleteRequest[companies[msg.sender].deleteRequest.length - 1];
+                companies[msg.sender].deleteRequest.pop();
                 return;
             }
         }

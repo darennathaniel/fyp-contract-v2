@@ -1,19 +1,25 @@
 var SupplyChainNetwork = artifacts.require("SupplyChainNetwork");
 var ProductContract = artifacts.require("ProductContract");
+var DeleteRequestContract = artifacts.require("DeleteRequestContract");
 
 contract("SupplyChainNetwork", (accounts) => {
   let owner = accounts[0];
   let supplyChainNetwork;
   let productContract;
+  let deleteRequestContract;
   before(async () => {
     supplyChainNetwork = await SupplyChainNetwork.deployed();
     productContract = await ProductContract.deployed();
+    deleteRequestContract = await DeleteRequestContract.deployed();
   });
   it("Add a new company by owner should add a new company", async () => {
     await supplyChainNetwork.addCompany.sendTransaction(accounts[1], "a", {
       from: owner,
     });
     await productContract.addCompany.sendTransaction(accounts[1], {
+      from: owner,
+    });
+    await deleteRequestContract.addCompany.sendTransaction(accounts[1], {
       from: owner,
     });
     const company1 = await supplyChainNetwork.companies(accounts[1]);
@@ -23,6 +29,9 @@ contract("SupplyChainNetwork", (accounts) => {
       from: owner,
     });
     await productContract.addCompany.sendTransaction(accounts[2], {
+      from: owner,
+    });
+    await deleteRequestContract.addCompany.sendTransaction(accounts[2], {
       from: owner,
     });
     const company2 = await supplyChainNetwork.headCompanies(1);
@@ -52,6 +61,9 @@ contract("SupplyChainNetwork", (accounts) => {
       }
     );
     await supplyChainNetwork.addProduct.sendTransaction(2, "Egg", accounts[2], {
+      from: accounts[0],
+    });
+    await deleteRequestContract.addProduct.sendTransaction(2, accounts[2], {
       from: accounts[0],
     });
     const product2 = await productContract.listOfProducts(2);
@@ -117,6 +129,9 @@ contract("SupplyChainNetwork", (accounts) => {
       accounts[1],
       { from: accounts[1] }
     );
+    await deleteRequestContract.addProduct.sendTransaction(1, accounts[1], {
+      from: accounts[1],
+    });
     const product1 = await productContract.listOfProducts(1);
     assert.equal(product1.productId, 1);
     assert.equal(product1.productName, "Omelette");
@@ -199,6 +214,13 @@ contract("SupplyChainNetwork", (accounts) => {
       },
       { from: accounts[2] }
     );
+    await deleteRequestContract.addUpstream.sendTransaction(
+      {
+        companyId: accounts[1],
+        productId: 2,
+      },
+      { from: accounts[2] }
+    );
     const company1 = await supplyChainNetwork.getCompany.call(accounts[1]);
     const company2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     const headCompany1 = await supplyChainNetwork.headCompanies(0);
@@ -220,6 +242,9 @@ contract("SupplyChainNetwork", (accounts) => {
       from: owner,
     });
     await productContract.addCompany.sendTransaction(accounts[3], {
+      from: owner,
+    });
+    await deleteRequestContract.addCompany.sendTransaction(accounts[3], {
       from: owner,
     });
     await productContract.addProductWithRecipe.sendTransaction(
@@ -246,6 +271,9 @@ contract("SupplyChainNetwork", (accounts) => {
       accounts[3],
       { from: accounts[3] }
     );
+    await deleteRequestContract.addProduct.sendTransaction(3, accounts[3], {
+      from: accounts[3],
+    });
     await supplyChainNetwork.sendContract.sendTransaction(
       {
         id: 2,
@@ -365,6 +393,13 @@ contract("SupplyChainNetwork", (accounts) => {
         id: 3,
         from: accounts[3],
         to: accounts[2],
+        productId: 2,
+      },
+      { from: accounts[2] }
+    );
+    await deleteRequestContract.addUpstream.sendTransaction(
+      {
+        companyId: accounts[3],
         productId: 2,
       },
       { from: accounts[2] }
@@ -546,6 +581,9 @@ contract("SupplyChainNetwork", (accounts) => {
     await productContract.addProductOwner.sendTransaction(2, {
       from: accounts[1],
     });
+    await deleteRequestContract.addProduct.sendTransaction(2, accounts[1], {
+      from: accounts[1],
+    });
     const address = await productContract.productOwners(2, 1);
     const company = await supplyChainNetwork.getCompany.call(accounts[1]);
     assert.equal(address, accounts[1]);
@@ -591,10 +629,10 @@ contract("SupplyChainNetwork", (accounts) => {
       assert.include(err.message, "revert");
     }
   });
-  it("Account 1 sends a delete request for product ID 2 should throw an error", async () => {
+  it("Account 3 sends a delete request for product ID 2 should throw an error", async () => {
     try {
-      await supplyChainNetwork.sendDeleteRequest.sendTransaction(1, 2, {
-        from: accounts[1],
+      await deleteRequestContract.sendDeleteRequest.sendTransaction(1, 2, "a", {
+        from: accounts[3],
       });
       assert.fail("The transaction should have failed");
     } catch (err) {
@@ -602,56 +640,69 @@ contract("SupplyChainNetwork", (accounts) => {
     }
   });
   it("Account 2 sends a delete request for supply product ID 2", async () => {
-    await supplyChainNetwork.sendDeleteRequest.sendTransaction(1, 2, {
+    await deleteRequestContract.sendDeleteRequest.sendTransaction(1, 2, "a", {
       from: accounts[2],
     });
-    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
-    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    await supplyChainNetwork.sendDeleteRequest.sendTransaction(1, 2, "a", {
+      from: accounts[2],
+    });
+    const account1 = await deleteRequestContract.getCompany.call(accounts[1]);
+    const account2 = await deleteRequestContract.getCompany.call(accounts[2]);
     assert.equal(account2.outgoingDeleteRequests[0].id, 1);
     assert.equal(account2.outgoingDeleteRequests[0].productId, 2);
     assert.equal(account2.outgoingDeleteRequests[0].owner, accounts[2]);
     assert.equal(account2.outgoingDeleteRequests[0].rejected, false);
     assert.equal(account2.outgoingDeleteRequests[0].approvals.length, 0);
-    assert.equal(account1.incomingDeleteRequests[0], 1);
+    assert.equal(account1.incomingDeleteRequests[0].id, 1);
   });
   it("Account 1 rejects the request ID 1", async () => {
-    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+    await deleteRequestContract.respondDeleteRequest.sendTransaction(
       1,
       2,
       accounts[2],
       false,
+      "a",
       {
         from: accounts[1],
       }
     );
-    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
-    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    const account1 = await deleteRequestContract.getCompany.call(accounts[1]);
+    const account2 = await deleteRequestContract.getCompany.call(accounts[2]);
     assert.equal(account1.incomingDeleteRequests.length, 0);
     assert.equal(account2.outgoingDeleteRequests[0].rejected, true);
   });
   it("Account 1 approves the request ID 2", async () => {
-    await supplyChainNetwork.sendDeleteRequest.sendTransaction(2, 2, {
+    await deleteRequestContract.sendDeleteRequest.sendTransaction(2, 2, "a", {
       from: accounts[2],
     });
-    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+    await supplyChainNetwork.sendDeleteRequest.sendTransaction(2, 2, "a", {
+      from: accounts[2],
+    });
+    await deleteRequestContract.respondDeleteRequest.sendTransaction(
       2,
       2,
       accounts[2],
       true,
+      "a",
       {
         from: accounts[1],
       }
     );
-    const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
-    const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
+    await supplyChainNetwork.addApproval.sendTransaction(2, "a", accounts[2], {
+      from: accounts[1],
+    });
+    const account1 = await deleteRequestContract.getCompany.call(accounts[1]);
+    const account2 = await deleteRequestContract.getCompany.call(accounts[2]);
+    const sc_account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     assert.equal(account1.incomingDeleteRequests.length, 0);
     assert.equal(account2.outgoingDeleteRequests[1].rejected, false);
     assert.equal(account2.outgoingDeleteRequests[1].approvals.length, 1);
     assert.equal(account2.outgoingDeleteRequests[1].approvals[0], accounts[1]);
+    assert.equal(sc_account2.deleteRequest[1].approvals, 1);
   });
   it("Account 4 responds to the request should throw an error", async () => {
     try {
-      await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+      await deleteRequestContract.respondDeleteRequest.sendTransaction(
         2,
         2,
         accounts[2],
@@ -669,12 +720,14 @@ contract("SupplyChainNetwork", (accounts) => {
     try {
       await supplyChainNetwork.deleteSupply.sendTransaction(
         2,
+        2,
         [
           {
             companyId: accounts[1],
-            productId: 2,
+            productId: 1,
           },
         ],
+        "a",
         {
           from: accounts[2],
         }
@@ -685,31 +738,42 @@ contract("SupplyChainNetwork", (accounts) => {
     }
   });
   it("Account 2 deletes supply for product ID 2 with enough approvals", async () => {
-    await supplyChainNetwork.respondDeleteRequest.sendTransaction(
+    await deleteRequestContract.respondDeleteRequest.sendTransaction(
       2,
       2,
       accounts[2],
       true,
+      "a",
       {
         from: accounts[3],
       }
     );
-    await supplyChainNetwork.deleteSupply.sendTransaction(2, [], {
+    await supplyChainNetwork.addApproval.sendTransaction(2, "a", accounts[2], {
+      from: accounts[3],
+    });
+    await supplyChainNetwork.deleteSupply.sendTransaction(2, 2, [], "a", {
+      from: accounts[2],
+    });
+    await deleteRequestContract.deleteSupply.sendTransaction(2, 2, [], "a", {
       from: accounts[2],
     });
     const account1 = await supplyChainNetwork.getCompany.call(accounts[1]);
     const account2 = await supplyChainNetwork.getCompany.call(accounts[2]);
     const account3 = await supplyChainNetwork.getCompany.call(accounts[3]);
+    const headCompany = await supplyChainNetwork.headCompanies(2);
+    assert.equal(headCompany.owner, accounts[2]);
     assert.equal(account2.upstream.length, 0);
     assert.equal(account1.downstream.length, 0);
     assert.equal(account3.downstream.length, 0);
-    try {
-      await supplyChainNetwork.getSupply.call(2, {
-        from: accounts[2],
-      });
-      assert.fail("The transaction should have failed");
-    } catch (err) {
-      assert.include(err.message, "revert");
-    }
+    assert.equal(account1.listOfPrerequisites.length, 1);
+    assert.equal(account3.listOfPrerequisites.length, 1);
+    assert.equal(account2.listOfSupply.length, 0);
+    assert.equal(account2.deleteRequest.length, 1);
+    const drc_account2 = await deleteRequestContract.getCompany.call(
+      accounts[2]
+    );
+    assert.equal(drc_account2.listOfSupply.length, 0);
+    assert.equal(drc_account2.upstream.length, 0);
+    assert.equal(drc_account2.outgoingDeleteRequests.length, 1);
   });
 });
