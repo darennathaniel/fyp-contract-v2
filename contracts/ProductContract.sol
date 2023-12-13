@@ -95,4 +95,7 @@ contract ProductContract {
         }
         revert("Recipe not found for that product ID");
     }
+    function getProduct(uint productId) public view returns (Product memory) {
+        return listOfProducts[productId];
+    }
 }
