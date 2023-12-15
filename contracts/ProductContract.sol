@@ -69,14 +69,29 @@ contract ProductContract {
         recipe.supply = listOfProducts[productId];
         recipe.quantities = quantityPrerequisiteSupplies;
     }
-    function addProductOwner(uint productId) public {
-        require(listOfProducts[productId].exist && !listOfProducts[productId].has_recipe);
+    function addProductOwnerWithoutRecipe(uint productId, address owner) public {
+        require(msg.sender == networkOwner && listOfProducts[productId].exist);
+        for(uint i = 0; i < productOwners[productId].length; i++) {
+            if(owner == productOwners[productId][i]) {
+                revert();
+            }
+        }
+        productOwners[productId].push(owner);
+    }
+    function addProductOwnerWithRecipe(uint productId, Product[] memory prerequisiteSupplies, uint[] memory quantityPrerequisiteSupplies) public {
+        require(listOfProducts[productId].exist);
         for(uint i = 0; i < productOwners[productId].length; i++) {
             if(msg.sender == productOwners[productId][i]) {
                 revert();
             }
         }
         productOwners[productId].push(msg.sender);
+        Recipe storage recipe = companyRecipes[msg.sender].push();
+        for(uint i = 0; i < prerequisiteSupplies.length; i++) {
+            recipe.prerequisites.push(prerequisiteSupplies[i]);
+        }
+        recipe.supply = listOfProducts[productId];
+        recipe.quantities = quantityPrerequisiteSupplies;
     }
     function deleteProductOwner(uint productId) public {
         for(uint i = 0; i < productOwners[productId].length; i++) {
