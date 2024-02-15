@@ -578,9 +578,13 @@ contract("SupplyChainNetwork", (accounts) => {
     await supplyChainNetwork.addProductOwner.sendTransaction(2, "Egg", {
       from: accounts[1],
     });
-    await productContract.addProductOwner.sendTransaction(2, {
-      from: accounts[1],
-    });
+    await productContract.addProductOwnerWithoutRecipe.sendTransaction(
+      2,
+      accounts[1],
+      {
+        from: accounts[0],
+      }
+    );
     await deleteRequestContract.addProduct.sendTransaction(2, accounts[1], {
       from: accounts[1],
     });
@@ -601,9 +605,13 @@ contract("SupplyChainNetwork", (accounts) => {
   });
   it("Company adds an already existing product should throw an error (product contract)", async () => {
     try {
-      await productContract.addProductOwner.sendTransaction(1, {
-        from: accounts[1],
-      });
+      await productContract.addProductOwnerWithoutRecipe.sendTransaction(
+        1,
+        accounts[1],
+        {
+          from: accounts[1],
+        }
+      );
       assert.fail("The transaction should have failed");
     } catch (err) {
       assert.include(err.message, "revert");
@@ -611,9 +619,14 @@ contract("SupplyChainNetwork", (accounts) => {
   });
   it("Company adds new existing product with recipe should throw an error (product contract)", async () => {
     try {
-      await productContract.addProductOwner.sendTransaction(2, {
-        from: accounts[2],
-      });
+      await productContract.addProductOwnerWithRecipe.sendTransaction(
+        2,
+        [],
+        [],
+        {
+          from: accounts[2],
+        }
+      );
       assert.fail("The transaction should have failed");
     } catch (err) {
       assert.include(err.message, "revert");
@@ -624,6 +637,20 @@ contract("SupplyChainNetwork", (accounts) => {
       await supplyChainNetwork.addProductOwner.sendTransaction(2, "Omelette", {
         from: accounts[2],
       });
+      assert.fail("The transaction should have failed");
+    } catch (err) {
+      assert.include(err.message, "revert");
+    }
+  });
+  it("Company adds an existing product without owner approval", async () => {
+    try {
+      await productContract.addProductOwnerWithoutRecipe.sendTransaction(
+        2,
+        accounts[1],
+        {
+          from: accounts[1],
+        }
+      );
       assert.fail("The transaction should have failed");
     } catch (err) {
       assert.include(err.message, "revert");
