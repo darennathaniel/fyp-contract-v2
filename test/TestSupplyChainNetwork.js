@@ -778,9 +778,16 @@ contract("SupplyChainNetwork", (accounts) => {
     await supplyChainNetwork.addApproval.sendTransaction(2, "a", accounts[2], {
       from: accounts[3],
     });
-    await supplyChainNetwork.deleteSupply.sendTransaction(2, 2, [], "a", {
-      from: accounts[2],
-    });
+    await supplyChainNetwork.deleteSupply.sendTransaction(
+      2,
+      2,
+      [],
+      "a",
+      false,
+      {
+        from: accounts[2],
+      }
+    );
     await deleteRequestContract.deleteSupply.sendTransaction(2, 2, [], "a", {
       from: accounts[2],
     });

@@ -23,7 +23,12 @@ contract DeleteRequestContract {
         DeleteRequest[] outgoingDeleteRequests;
         bool exist;
     }
+    enum STATE {
+        APPROVED,
+        REJECTED
+    }
     mapping(address => Company) companies;
+    event DeleteRequests(uint indexed requestId, address indexed owner, address indexed responder, uint productId, STATE state, uint256 timestamp);
     function getCompany(address owner) public view returns (Company memory) {
         return companies[owner];
     }
@@ -40,7 +45,7 @@ contract DeleteRequestContract {
     function checkEnoughApproval(uint id) public view returns (bool) {
         for(uint i = 0; i < companies[msg.sender].outgoingDeleteRequests.length; i++) {
             if(companies[msg.sender].outgoingDeleteRequests[i].id == id) {
-                return companies[msg.sender].outgoingDeleteRequests.length == companies[msg.sender].upstream.length;
+                return companies[msg.sender].outgoingDeleteRequests[i].approvals.length == companies[msg.sender].upstream.length;
             }
         }
         revert();
@@ -72,7 +77,9 @@ contract DeleteRequestContract {
                     if(companies[from].outgoingDeleteRequests[j].id == id && keccak256(abi.encodePacked(companies[from].outgoingDeleteRequests[i].code)) == keccak256(abi.encodePacked(code))) {
                         if(approve) {
                             companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
+                            emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.APPROVED, block.timestamp);
                         } else {
+                            emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.REJECTED, block.timestamp);
                             companies[from].outgoingDeleteRequests[j].rejected = true;
                         }
                     }
@@ -104,6 +111,7 @@ contract DeleteRequestContract {
                 for(uint j = 0; j < upstreamLeft.length; j++) {
                     companies[msg.sender].upstream.push(upstreamLeft[j]);
                 }
+                emit DeleteRequests(id, companies[msg.sender].outgoingDeleteRequests[i].owner, msg.sender, productId, STATE.APPROVED, block.timestamp);
                 companies[msg.sender].outgoingDeleteRequests[i] = companies[msg.sender].outgoingDeleteRequests[companies[msg.sender].outgoingDeleteRequests.length - 1];
                 companies[msg.sender].outgoingDeleteRequests.pop();
             }

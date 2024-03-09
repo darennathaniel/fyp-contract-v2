@@ -347,7 +347,7 @@ contract SupplyChainNetwork {
         }
         revert();
     }
-    function deleteSupply(uint id, uint productId, CompanyProduct[] memory upstreamLeft, string memory code) public {
+    function deleteSupply(uint id, uint productId, CompanyProduct[] memory upstreamLeft, string memory code, bool isHeadCompany) public {
         for(uint i = 0; i < companies[msg.sender].deleteRequest.length; i++) {
             if(companies[msg.sender].deleteRequest[i].id == id && keccak256(abi.encodePacked(companies[msg.sender].deleteRequest[i].code)) == keccak256(abi.encodePacked(code)) && companies[msg.sender].deleteRequest[i].approvals == companies[msg.sender].upstream.length) {
                 // loops through all the upstream company of msg.sender
@@ -367,7 +367,7 @@ contract SupplyChainNetwork {
                     companies[msg.sender].upstream.push(upstreamLeft[j]);
                 }
                 // if current does not have anymore upstream, push self to headCompanies
-                if(upstreamLeft.length == 0) {
+                if(upstreamLeft.length == 0 && !isHeadCompany) {
                     headCompanies.push(companies[msg.sender]);
                 }
                 // delete msg.sender from product owner
