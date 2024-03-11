@@ -74,7 +74,7 @@ contract DeleteRequestContract {
             // check if the approval is the sender's upstream and has the same product ID
             if(companies[from].upstream[i].companyId == msg.sender && companies[from].upstream[i].productId == productId) {
                 for(uint j = 0; j < companies[from].outgoingDeleteRequests.length; j++) {
-                    if(companies[from].outgoingDeleteRequests[j].id == id && keccak256(abi.encodePacked(companies[from].outgoingDeleteRequests[i].code)) == keccak256(abi.encodePacked(code))) {
+                    if(companies[from].outgoingDeleteRequests[j].id == id && keccak256(abi.encodePacked(companies[from].outgoingDeleteRequests[j].code)) == keccak256(abi.encodePacked(code))) {
                         if(approve) {
                             companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
                             emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.APPROVED, block.timestamp);
@@ -82,6 +82,7 @@ contract DeleteRequestContract {
                             emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.REJECTED, block.timestamp);
                             companies[from].outgoingDeleteRequests[j].rejected = true;
                         }
+                        break;
                     }
                 }
                 // remove the deleteRequest ID from approval's incomingDeleteRequests
