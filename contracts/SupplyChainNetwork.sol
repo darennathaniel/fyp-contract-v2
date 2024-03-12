@@ -86,13 +86,15 @@ contract SupplyChainNetwork {
         }
         if(msg.sender == networkOwner) {
             companies[company_address].listOfSupply.push(productId);
+            companySupplies[company_address][productId].exist = true;
         } else {
             companies[msg.sender].listOfSupply.push(productId);
+            companySupplies[msg.sender][productId].exist = true;
         }
         productNames.push(productName);
     }
     // TODO: change where only networkOwner can call this function
-    function addProductOwner(uint productId, string memory productName) public {
+    function addProductOwner(uint productId) public {
         require(companies[msg.sender].exist);
         for(uint i = 0; i < companies[msg.sender].listOfSupply.length; i++) {
             if(companies[msg.sender].listOfSupply[i] == productId) {
@@ -100,7 +102,7 @@ contract SupplyChainNetwork {
             }
         }
         companies[msg.sender].listOfSupply.push(productId);
-        productNames.push(productName);
+        companySupplies[msg.sender][productId].exist = true;
     }
     function getPastSupply(uint supplyId) public view returns (uint[] memory) {
         require(pastSupplies[supplyId].exist);
