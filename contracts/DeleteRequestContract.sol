@@ -79,7 +79,7 @@ contract DeleteRequestContract {
                             companies[from].outgoingDeleteRequests[j].approvals.push(msg.sender);
                             emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.APPROVED, block.timestamp);
                         } else {
-                            emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, msg.sender, productId, STATE.REJECTED, block.timestamp);
+                            emit DeleteRequests(id, companies[from].outgoingDeleteRequests[j].owner, companies[from].outgoingDeleteRequests[j].owner, productId, STATE.REJECTED, block.timestamp);
                             companies[from].outgoingDeleteRequests[j].rejected = true;
                         }
                         break;
